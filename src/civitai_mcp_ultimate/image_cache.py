@@ -67,16 +67,12 @@ def _ext_from_url(url: str) -> str:
 
 
 async def download_image(image_id: int | str, url: str) -> str | None:
-    """Download image to cache, return local path. Skip videos.
+    """Download image/video to cache, return local path.
 
-    Returns None if download fails or file is a video.
+    Images are downloaded as 512px thumbnails. Videos are downloaded as-is.
+    Returns None if download fails.
     """
     ext = _ext_from_url(url)
-
-    # Skip videos — can't preview via Read tool
-    if ext == "mp4":
-        return None
-
     cache_dir = _ensure_cache_dir()
     local_path = cache_dir / f"{image_id}.{ext}"
 
@@ -84,19 +80,23 @@ async def download_image(image_id: int | str, url: str) -> str | None:
     if local_path.exists() and local_path.stat().st_size > 0:
         return str(local_path)
 
-    # Download thumbnail
-    thumb_url = _thumbnail_url(url)
+    # Videos: download original (no thumbnail available)
+    # Images: download 512px thumbnail to save bandwidth
+    is_video = ext in ("mp4",)
+    download_url = url if is_video else _thumbnail_url(url)
+    timeout = 60.0 if is_video else 15.0
+
     try:
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            resp = await client.get(thumb_url)
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+            resp = await client.get(download_url)
             if resp.status_code == 200 and len(resp.content) > 100:
                 local_path.write_bytes(resp.content)
                 return str(local_path)
             else:
-                logger.warning(f"Failed to download image {image_id}: HTTP {resp.status_code}")
+                logger.warning(f"Failed to download {image_id}: HTTP {resp.status_code}")
                 return None
     except Exception as e:
-        logger.warning(f"Failed to download image {image_id}: {e}")
+        logger.warning(f"Failed to download {image_id}: {e}")
         return None
 
 
