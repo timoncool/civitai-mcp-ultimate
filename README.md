@@ -25,12 +25,15 @@
 
 ## Quick Start
 
+### Install from PyPI
+
+```bash
+pip install civitai-mcp-ultimate
+```
+
 ### Claude Code
 ```bash
-claude mcp add civitai -- uvx civitai-mcp-ultimate
-
-# Set your API key
-export CIVITAI_API_KEY=your_key_here
+claude mcp add civitai -e CIVITAI_API_KEY=your_key_here -- uvx civitai-mcp-ultimate
 ```
 
 ### Claude Desktop
