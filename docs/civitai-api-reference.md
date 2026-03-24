@@ -226,6 +226,7 @@ Browse AI-generated images.
 | `sort` | enum | | `Most Reactions`, `Most Comments`, `Most Collected`, `Newest`, `Oldest` |
 | `period` | enum | | `AllTime`, `Year`, `Month`, `Week`, `Day` |
 | `page` | number | | Page number |
+| `type` | enum | | **Undocumented**. `image` for images only, `video` for videos only. Omit for all. |
 
 **Note**: Image endpoint uses cursor-based pagination since July 2, 2023. `metadata.nextCursor` is provided.
 
