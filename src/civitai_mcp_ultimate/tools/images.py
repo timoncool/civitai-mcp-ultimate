@@ -9,23 +9,6 @@ from ..formatters import format_image, format_image_list
 from ..image_cache import download_images
 
 
-def _is_video(url: str) -> bool:
-    """Check if URL points to a video file."""
-    return url.rstrip("/").rsplit("/", 1)[-1].split("?")[0].lower().endswith(".mp4")
-
-
-def _filter_by_content_type(items: list[dict], content_type: str | None) -> list[dict]:
-    """Filter items by content type: 'image', 'video', or None (all)."""
-    if not content_type:
-        return items
-    ct = content_type.lower().strip()
-    if ct == "video":
-        return [img for img in items if _is_video(img.get("url", ""))]
-    if ct == "image":
-        return [img for img in items if not _is_video(img.get("url", ""))]
-    return items
-
-
 async def _format_with_downloads(
     images: list[dict],
     include_prompts: bool = True,
@@ -59,10 +42,9 @@ async def browse_images(
     """Browse AI-generated images on Civitai.
 
     Filter by model, creator, post, NSFW level. Sort by reactions, comments, or date.
+    content_type: "image" or "video" — filters server-side via Civitai API type param.
     Returns images with URLs, stats, and generation parameters (prompts).
     """
-    # Fetch extra items when filtering by content_type to ensure we get enough results
-    fetch_limit = min(limit * 3, 200) if content_type else min(limit, 200)
     params: dict = {
         "modelId": model_id,
         "modelVersionId": model_version_id,
@@ -71,9 +53,13 @@ async def browse_images(
         "nsfw": nsfw,
         "sort": sort,
         "period": period,
-        "limit": fetch_limit,
+        "limit": min(limit, 200),
         "page": page,
     }
+    # Server-side content type filter (undocumented but works)
+    if content_type:
+        params["type"] = content_type.lower().strip()
+
     try:
         data = await client.get("images", params)
     except CivitaiRateLimitError:
@@ -86,12 +72,8 @@ async def browse_images(
         return f"Civitai API error: HTTP {e.response.status_code}"
     items = data.get("items", [])
     if not items:
-        return "No images found with these filters."
-
-    # Filter by content type and trim to requested limit
-    items = _filter_by_content_type(items, content_type)[:limit]
-    if not items:
-        return f"No {content_type or 'content'} found with these filters."
+        ct_label = content_type or "content"
+        return f"No {ct_label} found with these filters."
 
     result = await _format_with_downloads(items, include_prompts=True)
     # Surface cursor for pagination
@@ -114,6 +96,7 @@ async def get_top_images(
     Perfect for finding the best prompts and generation parameters.
     Sort options: Most Reactions, Most Comments, Most Collected, Newest, Oldest.
     Period: Day, Week, Month, Year, AllTime.
+    content_type: "image" or "video" to filter by media type.
     """
     return await browse_images(
         client,
