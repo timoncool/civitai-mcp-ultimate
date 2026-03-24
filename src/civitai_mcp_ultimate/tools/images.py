@@ -9,6 +9,23 @@ from ..formatters import format_image, format_image_list
 from ..image_cache import download_images
 
 
+def _is_video(url: str) -> bool:
+    """Check if URL points to a video file."""
+    return url.rstrip("/").rsplit("/", 1)[-1].split("?")[0].lower().endswith(".mp4")
+
+
+def _filter_by_content_type(items: list[dict], content_type: str | None) -> list[dict]:
+    """Filter items by content type: 'image', 'video', or None (all)."""
+    if not content_type:
+        return items
+    ct = content_type.lower().strip()
+    if ct == "video":
+        return [img for img in items if _is_video(img.get("url", ""))]
+    if ct == "image":
+        return [img for img in items if not _is_video(img.get("url", ""))]
+    return items
+
+
 async def _format_with_downloads(
     images: list[dict],
     include_prompts: bool = True,
@@ -37,12 +54,15 @@ async def browse_images(
     period: str = "Month",
     limit: int = 10,
     page: Optional[int] = None,
+    content_type: Optional[str] = None,
 ) -> str:
     """Browse AI-generated images on Civitai.
 
     Filter by model, creator, post, NSFW level. Sort by reactions, comments, or date.
     Returns images with URLs, stats, and generation parameters (prompts).
     """
+    # Fetch extra items when filtering by content_type to ensure we get enough results
+    fetch_limit = min(limit * 3, 200) if content_type else min(limit, 200)
     params: dict = {
         "modelId": model_id,
         "modelVersionId": model_version_id,
@@ -51,7 +71,7 @@ async def browse_images(
         "nsfw": nsfw,
         "sort": sort,
         "period": period,
-        "limit": min(limit, 200),
+        "limit": fetch_limit,
         "page": page,
     }
     try:
@@ -67,6 +87,12 @@ async def browse_images(
     items = data.get("items", [])
     if not items:
         return "No images found with these filters."
+
+    # Filter by content type and trim to requested limit
+    items = _filter_by_content_type(items, content_type)[:limit]
+    if not items:
+        return f"No {content_type or 'content'} found with these filters."
+
     result = await _format_with_downloads(items, include_prompts=True)
     # Surface cursor for pagination
     meta = data.get("metadata", {})
@@ -81,6 +107,7 @@ async def get_top_images(
     period: str = "Month",
     nsfw: Optional[str] = None,
     limit: int = 10,
+    content_type: Optional[str] = None,
 ) -> str:
     """Get top images from Civitai by reactions, comments, or collections.
 
@@ -94,6 +121,7 @@ async def get_top_images(
         period=period,
         nsfw=nsfw,
         limit=limit,
+        content_type=content_type,
     )
 
 

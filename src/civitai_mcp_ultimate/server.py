@@ -169,17 +169,20 @@ async def browse_images(
     period: str = "Month",
     limit: int = 10,
     page: Optional[int] = None,
+    content_type: Optional[str] = None,
 ) -> str:
     """Browse AI-generated images on Civitai.
 
     Filter by model, creator, post, NSFW level.
     Sort: Most Reactions, Most Comments, Most Collected, Newest, Oldest.
     NSFW filter: None, Soft, Mature, X.
+    content_type: "image" for images only, "video" for videos only, None for all.
     Returns images with URLs, stats, and full generation parameters.
+    Downloaded previews are cached locally for viewing via Read tool.
     """
     from .tools.images import browse_images as _browse
 
-    return await _browse(client, model_id, model_version_id, post_id, username, nsfw, sort, period, limit, page)
+    return await _browse(client, model_id, model_version_id, post_id, username, nsfw, sort, period, limit, page, content_type)
 
 
 @mcp.tool
@@ -188,16 +191,19 @@ async def get_top_images(
     period: str = "Month",
     nsfw: Optional[str] = None,
     limit: int = 10,
+    content_type: Optional[str] = None,
 ) -> str:
     """Get top images from Civitai — best for finding great prompts.
 
     Sort: Most Reactions, Most Comments, Most Collected, Newest, Oldest.
     Period: Day, Week, Month, Year, AllTime.
     Set nsfw to filter NSFW level.
+    content_type: "image" for images only, "video" for videos only, None for all.
+    Downloaded previews are cached locally for viewing via Read tool.
     """
     from .tools.images import get_top_images as _get
 
-    return await _get(client, sort, period, nsfw, limit)
+    return await _get(client, sort, period, nsfw, limit, content_type)
 
 
 @mcp.tool
