@@ -2,6 +2,8 @@
 
 from typing import Optional
 
+import httpx
+
 from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError, _sanitize_query
 from ..formatters import format_file_size, format_model_card, format_model_list
 
@@ -51,6 +53,8 @@ async def search_models(
         return "Rate limited by Civitai API. Please try again in a few seconds."
     except CivitaiNotFoundError:
         return "Civitai API endpoint not found."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
 
     items = data.get("items", [])
     meta = data.get("metadata", {})

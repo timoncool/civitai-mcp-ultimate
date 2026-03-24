@@ -2,7 +2,9 @@
 
 from typing import Optional
 
-from ..client import CivitaiClient
+import httpx
+
+from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError
 from ..formatters import format_image, format_image_list
 
 
@@ -32,7 +34,14 @@ async def browse_images(
         "limit": min(limit, 200),
         "page": page,
     }
-    data = await client.get("images", params)
+    try:
+        data = await client.get("images", params)
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    except CivitaiNotFoundError:
+        return "Civitai images endpoint not found."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
     items = data.get("items", [])
     if not items:
         return "No images found with these filters."
@@ -98,7 +107,14 @@ async def get_image_generation_data(
         "period": "AllTime",
         "limit": min(limit, 20),
     }
-    data = await client.get("images", params)
+    try:
+        data = await client.get("images", params)
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    except CivitaiNotFoundError:
+        return "Civitai images endpoint not found."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
     items = data.get("items", [])
     if not items:
         return f"No images found for model {model_id}"

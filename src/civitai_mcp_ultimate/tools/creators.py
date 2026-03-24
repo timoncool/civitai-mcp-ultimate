@@ -2,7 +2,9 @@
 
 from typing import Optional
 
-from ..client import CivitaiClient
+import httpx
+
+from ..client import CivitaiClient, CivitaiRateLimitError
 from ..formatters import format_creator, format_tag
 
 
@@ -21,7 +23,12 @@ async def get_creators(
         "limit": min(limit, 200),
         "page": page,
     }
-    data = await client.get("creators", params)
+    try:
+        data = await client.get("creators", params)
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
     items = data.get("items", [])
     if not items:
         return "No creators found."
@@ -43,7 +50,12 @@ async def get_tags(
         "limit": min(limit, 200),
         "page": page,
     }
-    data = await client.get("tags", params)
+    try:
+        data = await client.get("tags", params)
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
     items = data.get("items", [])
     if not items:
         return "No tags found."

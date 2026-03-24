@@ -224,7 +224,7 @@ def format_download_info(
             target = f"{comfyui_path}/{subfolder}/{name}"
             lines.append(f"\n**ComfyUI path**: `{target}`")
             lines.append(f"```bash")
-            lines.append(f'curl -L -o "{target}" "{auth_url}"')
+            lines.append(f'curl -L -H "Authorization: Bearer $CIVITAI_API_KEY" -o "{target}" "{url}"')
             lines.append(f"```")
 
         # Hash
