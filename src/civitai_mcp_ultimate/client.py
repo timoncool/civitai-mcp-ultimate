@@ -64,18 +64,27 @@ class CivitaiClient:
     def __init__(self, api_key: str | None = None):
         self.api_key = api_key or os.getenv("CIVITAI_API_KEY", "")
         self._client: httpx.AsyncClient | None = None
+        self._lock = asyncio.Lock()
 
     async def _get_client(self) -> httpx.AsyncClient:
-        if self._client is None or self._client.is_closed:
-            headers = {"User-Agent": "civitai-mcp-ultimate/0.1.0"}
-            if self.api_key:
-                headers["Authorization"] = f"Bearer {self.api_key}"
-            self._client = httpx.AsyncClient(
-                timeout=TIMEOUT,
-                headers=headers,
-                follow_redirects=True,
-            )
-        return self._client
+        async with self._lock:
+            if self._client is None or self._client.is_closed:
+                headers = {"User-Agent": "civitai-mcp-ultimate/0.1.0"}
+                if self.api_key:
+                    headers["Authorization"] = f"Bearer {self.api_key}"
+                self._client = httpx.AsyncClient(
+                    timeout=TIMEOUT,
+                    headers=headers,
+                    follow_redirects=True,
+                )
+            return self._client
+
+    async def _force_recreate_client(self):
+        """Close and recreate client after connection errors."""
+        async with self._lock:
+            if self._client and not self._client.is_closed:
+                await self._client.aclose()
+            self._client = None
 
     async def close(self):
         if self._client and not self._client.is_closed:
@@ -130,6 +139,12 @@ class CivitaiClient:
                 response.raise_for_status()
                 return _sanitize_response(response.json())
 
+            except (httpx.RemoteProtocolError, httpx.ConnectError):
+                if attempt < MAX_RETRIES - 1:
+                    logger.warning(f"Connection error, recreating client (attempt {attempt + 1}/{MAX_RETRIES})")
+                    await self._force_recreate_client()
+                    continue
+                raise
             except httpx.TimeoutException:
                 if attempt < MAX_RETRIES - 1:
                     logger.warning(f"Timeout, retrying (attempt {attempt + 1}/{MAX_RETRIES})")

@@ -221,12 +221,10 @@ def format_download_info(
             from .types import COMFYUI_FOLDER_MAP
 
             subfolder = COMFYUI_FOLDER_MAP.get(model_type, "other")
-            target = os.path.join(comfyui_path, subfolder, name)
-            # Use forward slashes in curl command for cross-platform compat
-            curl_target = target.replace("\\", "/")
+            target = os.path.join(comfyui_path, subfolder, name).replace("\\", "/")
             lines.append(f"\n**ComfyUI path**: `{target}`")
             lines.append(f"```bash")
-            lines.append(f'curl -L -H "Authorization: Bearer $CIVITAI_API_KEY" -o "{curl_target}" "{url}"')
+            lines.append(f'curl -L -H "Authorization: Bearer $CIVITAI_API_KEY" -o "{target}" "{url}"')
             lines.append(f"```")
 
         # Hash

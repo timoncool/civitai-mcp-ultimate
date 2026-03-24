@@ -9,6 +9,7 @@ Environment:
     COMFYUI_MODELS_PATH — path to ComfyUI models dir (for download_info)
 """
 
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastmcp import FastMCP
@@ -16,12 +17,21 @@ from fastmcp import FastMCP
 from .client import CivitaiClient
 from .types import BaseModel_, ImageSort, ModelSort, ModelType, NsfwLevel, Period
 
+client = CivitaiClient()
+
+
+@asynccontextmanager
+async def lifespan(server):
+    """Manage client lifecycle."""
+    yield
+    await client.close()
+
+
 mcp = FastMCP(
     name="civitai-mcp-ultimate",
     instructions="Ultimate MCP server for Civitai — search models, browse top images with prompts, download LoRAs/Checkpoints, analyze trends.",
+    lifespan=lifespan,
 )
-
-client = CivitaiClient()
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -51,6 +61,7 @@ async def search_models(
     Period: AllTime, Year, Month, Week, Day.
 
     Tips: search by username is most reliable. Use get_model if you know the ID.
+    Note: page parameter is ignored when query is specified (Civitai uses cursor-based pagination for text search).
     """
     from .tools.models import search_models as _search
 
