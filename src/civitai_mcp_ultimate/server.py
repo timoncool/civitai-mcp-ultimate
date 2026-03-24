@@ -51,21 +51,33 @@ async def search_models(
     nsfw: Optional[bool] = None,
     limit: int = 20,
     page: int = 1,
+    ids: Optional[list[int]] = None,
+    favorites: Optional[bool] = None,
+    hidden: Optional[bool] = None,
+    primary_file_only: Optional[bool] = None,
+    allow_commercial_use: Optional[list[str]] = None,
+    supports_generation: Optional[bool] = None,
 ) -> str:
     """Search for AI models on Civitai with flexible filters.
 
     Find checkpoints, LoRAs, ControlNets and more.
-    Types: Checkpoint, LORA, LoCon, TextualInversion, Hypernetwork, Controlnet, Poses, VAE, Upscaler, Wildcards, MotionModule, Other.
-    Base models: SD 1.5, SDXL 1.0, Flux.1 D, Flux.2 D, Pony, Illustrious, NoobAI, Hunyuan 1, Kolors, Chroma, etc.
+    Types: Checkpoint, LORA, LoCon, TextualInversion, Hypernetwork, Controlnet, Poses, VAE, Upscaler, Wildcards, MotionModule, Workflows, Other.
+    Base models: SD 1.5, SDXL 1.0, Flux.1 D, Flux.2 D, Pony, Illustrious, NoobAI, Hunyuan 1, Kolors, Chroma, ZImageBase, etc.
     Sort: Highest Rated, Most Downloaded, Newest.
     Period: AllTime, Year, Month, Week, Day.
+    Commercial use filter: None, Image, Rent, RentCivit, Sell.
 
     Tips: search by username is most reliable. Use get_model if you know the ID.
     Note: page parameter is ignored when query is specified (Civitai uses cursor-based pagination for text search).
+    Set favorites=true or hidden=true to filter your own models (requires API key).
+    Set ids to fetch specific models by ID in batch.
     """
     from .tools.models import search_models as _search
 
-    return await _search(client, query, types, base_model, tag, username, sort, period, nsfw, limit, page)
+    return await _search(
+        client, query, types, base_model, tag, username, sort, period, nsfw, limit, page,
+        ids, favorites, hidden, primary_file_only, allow_commercial_use, supports_generation,
+    )
 
 
 @mcp.tool
@@ -142,6 +154,7 @@ async def get_top_loras(
 async def browse_images(
     model_id: Optional[int] = None,
     model_version_id: Optional[int] = None,
+    post_id: Optional[int] = None,
     username: Optional[str] = None,
     nsfw: Optional[str] = None,
     sort: str = "Most Reactions",
@@ -151,14 +164,14 @@ async def browse_images(
 ) -> str:
     """Browse AI-generated images on Civitai.
 
-    Filter by model, creator, NSFW level.
+    Filter by model, creator, post, NSFW level.
     Sort: Most Reactions, Most Comments, Most Collected, Newest, Oldest.
     NSFW filter: None, Soft, Mature, X.
     Returns images with URLs, stats, and full generation parameters.
     """
     from .tools.images import browse_images as _browse
 
-    return await _browse(client, model_id, model_version_id, username, nsfw, sort, period, limit, page)
+    return await _browse(client, model_id, model_version_id, post_id, username, nsfw, sort, period, limit, page)
 
 
 @mcp.tool

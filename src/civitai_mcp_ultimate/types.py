@@ -21,6 +21,7 @@ class ModelType(str, Enum):
     MOTION_MODULE = "MotionModule"
     VAE = "VAE"
     UPSCALER = "Upscaler"
+    WORKFLOWS = "Workflows"
     OTHER = "Other"
 
 
@@ -54,6 +55,8 @@ class BaseModel_(str, Enum):
     ILLUSTRIOUS = "Illustrious"
     NOOBAI = "NoobAI"
     ANIMA = "Anima"
+    # Z-Image
+    ZIMAGE_BASE = "ZImageBase"
     # Other image models
     AURAFLOW = "AuraFlow"
     CHROMA = "Chroma"

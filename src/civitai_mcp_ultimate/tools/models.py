@@ -20,6 +20,15 @@ async def search_models(
     nsfw: Optional[bool] = None,
     limit: int = 20,
     page: int = 1,
+    ids: Optional[list[int]] = None,
+    favorites: Optional[bool] = None,
+    hidden: Optional[bool] = None,
+    primary_file_only: Optional[bool] = None,
+    allow_commercial_use: Optional[list[str]] = None,
+    supports_generation: Optional[bool] = None,
+    allow_no_credit: Optional[bool] = None,
+    allow_derivatives: Optional[bool] = None,
+    allow_different_licenses: Optional[bool] = None,
 ) -> str:
     """Search for AI models on Civitai with flexible filters.
 
@@ -49,6 +58,24 @@ async def search_models(
         params["baseModels"] = [base_model]
     if nsfw is not None:
         params["nsfw"] = nsfw
+    if ids:
+        params["ids"] = ids
+    if favorites is not None:
+        params["favorites"] = favorites
+    if hidden is not None:
+        params["hidden"] = hidden
+    if primary_file_only is not None:
+        params["primaryFileOnly"] = primary_file_only
+    if allow_commercial_use:
+        params["allowCommercialUse"] = allow_commercial_use
+    if supports_generation is not None:
+        params["supportsGeneration"] = supports_generation
+    if allow_no_credit is not None:
+        params["allowNoCredit"] = allow_no_credit
+    if allow_derivatives is not None:
+        params["allowDerivatives"] = allow_derivatives
+    if allow_different_licenses is not None:
+        params["allowDifferentLicenses"] = allow_different_licenses
 
     try:
         data = await client.get("models", params)
@@ -127,8 +154,23 @@ def _format_version(v: dict) -> str:
 
     for f in v.get("files", [])[:5]:
         size = format_file_size(f.get("sizeKB", 0))
-        lines.append(f"\n**File**: {f.get('name', '?')} ({size})")
+        meta = f.get("metadata", {})
+        fmt = meta.get("format", "?")
+        fp = meta.get("fp", "?")
+        fsize = meta.get("size", "?")
+        primary = " [PRIMARY]" if f.get("primary") else ""
+        lines.append(f"\n**File**: {f.get('name', '?')} ({size}, {fmt}, {fp}, {fsize}){primary}")
         lines.append(f"  Download: `{f.get('downloadUrl', '?')}`")
+        # Security scan
+        pickle_scan = f.get("pickleScanResult")
+        virus_scan = f.get("virusScanResult")
+        if pickle_scan or virus_scan:
+            lines.append(f"  Scan: pickle={pickle_scan or '?'}, virus={virus_scan or '?'}")
+        # Hashes
+        hashes = f.get("hashes", {})
+        hash_parts = [f"{ht}: {hashes[ht]}" for ht in ["SHA256", "AutoV2"] if hashes.get(ht)]
+        if hash_parts:
+            lines.append(f"  Hashes: {' | '.join(hash_parts)}")
 
     return "\n".join(lines)
 

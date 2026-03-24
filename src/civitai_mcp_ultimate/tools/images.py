@@ -12,6 +12,7 @@ async def browse_images(
     client: CivitaiClient,
     model_id: Optional[int] = None,
     model_version_id: Optional[int] = None,
+    post_id: Optional[int] = None,
     username: Optional[str] = None,
     nsfw: Optional[str] = None,
     sort: str = "Most Reactions",
@@ -21,12 +22,13 @@ async def browse_images(
 ) -> str:
     """Browse AI-generated images on Civitai.
 
-    Filter by model, creator, NSFW level. Sort by reactions, comments, or date.
+    Filter by model, creator, post, NSFW level. Sort by reactions, comments, or date.
     Returns images with URLs, stats, and generation parameters (prompts).
     """
     params: dict = {
         "modelId": model_id,
         "modelVersionId": model_version_id,
+        "postId": post_id,
         "username": username,
         "nsfw": nsfw,
         "sort": sort,
@@ -47,7 +49,12 @@ async def browse_images(
     items = data.get("items", [])
     if not items:
         return "No images found with these filters."
-    return format_image_list(items, include_prompts=True)
+    result = format_image_list(items, include_prompts=True)
+    # Surface cursor for pagination
+    meta = data.get("metadata", {})
+    if meta.get("nextCursor"):
+        result += f"\n\n---\n_Next cursor: {meta['nextCursor']}_"
+    return result
 
 
 async def get_top_images(

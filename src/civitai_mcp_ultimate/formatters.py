@@ -45,8 +45,11 @@ def format_model_card(model: dict[str, Any]) -> str:
     if isinstance(tags, list) and tags and isinstance(tags[0], dict):
         tags = [tag["name"] for tag in tags]
 
+    mode = model.get("mode")
+    mode_tag = f" **[{mode}]**" if mode else ""
+
     lines = [
-        f"## {model.get('name', '?')} (ID: {model.get('id', '?')})",
+        f"## {model.get('name', '?')} (ID: {model.get('id', '?')}){mode_tag}",
         "",
         f"**{L_TYPE}**: {model.get('type', '?')} | **{L_BASE_MODEL}**: {_get_base_model(model)}",
         f"**{L_CREATOR}**: {creator.get('username', '?')}",
@@ -76,8 +79,14 @@ def format_model_card(model: dict[str, Any]) -> str:
             size = format_file_size(f.get("sizeKB", 0))
             fmt = f.get("metadata", {}).get("format", "?")
             fp = f.get("metadata", {}).get("fp", "?")
-            lines.append(f"- **{L_FILES}**: {f.get('name', '?')} ({size}, {fmt}, {fp})")
+            fsize = f.get("metadata", {}).get("size", "?")
+            lines.append(f"- **{L_FILES}**: {f.get('name', '?')} ({size}, {fmt}, {fp}, {fsize})")
             lines.append(f"  - **{L_DOWNLOAD}**: `{f.get('downloadUrl', '?')}`")
+            # Security scan results
+            pickle_scan = f.get("pickleScanResult", "?")
+            virus_scan = f.get("virusScanResult", "?")
+            if pickle_scan != "?" or virus_scan != "?":
+                lines.append(f"  - **Scan**: pickle={pickle_scan}, virus={virus_scan}")
 
     return "\n".join(lines)
 
@@ -118,6 +127,10 @@ def format_image(image: dict[str, Any], include_prompt: bool = True) -> str:
         f"**NSFW**: {image.get('nsfwLevel', image.get('nsfw', '?'))}",
         f"**{L_CREATOR}**: {image.get('username', '?')}",
     ]
+    # Model version IDs used to generate this image
+    mv_ids = image.get("modelVersionIds")
+    if mv_ids:
+        lines.append(f"**Model Version IDs**: {', '.join(str(i) for i in mv_ids)}")
 
     # Stats
     reaction_parts = []
@@ -227,10 +240,27 @@ def format_download_info(
             lines.append(f'curl -L -H "Authorization: Bearer $CIVITAI_API_KEY" -o "{target}" "{url}"')
             lines.append(f"```")
 
-        # Hash
+        # wget command
+        lines.append("\n**wget**:")
+        lines.append("```bash")
+        lines.append(f'wget --content-disposition -H "Authorization: Bearer $CIVITAI_API_KEY" "{url}"')
+        lines.append("```")
+
+        # Security scan
+        pickle_scan = f.get("pickleScanResult")
+        virus_scan = f.get("virusScanResult")
+        if pickle_scan or virus_scan:
+            lines.append(f"\n**Scan**: pickle={pickle_scan or '?'}, virus={virus_scan or '?'}")
+
+        # All hashes
         hashes = f.get("hashes", {})
-        if hashes.get("SHA256"):
-            lines.append(f"\n**SHA256**: `{hashes['SHA256']}`")
+        if hashes:
+            hash_parts = []
+            for htype in ["SHA256", "AutoV2", "AutoV1", "CRC32", "BLAKE3"]:
+                if hashes.get(htype):
+                    hash_parts.append(f"{htype}: `{hashes[htype]}`")
+            if hash_parts:
+                lines.append(f"\n**Hashes**: {' | '.join(hash_parts)}")
 
     return "\n".join(lines)
 
