@@ -19,7 +19,7 @@
 - **NSFW support** — full NSFW access with API key (None/Soft/Mature/X filtering)
 - **Bilingual output** — English and Russian (`CIVITAI_MCP_LANG=ru`)
 - **Async & fast** — httpx async client, retry with backoff on rate limits
-- **15 tools** covering the entire Civitai public REST API
+- **14 tools** covering 100% of the Civitai public REST API v1
 
 ---
 
@@ -100,10 +100,10 @@ civitai-mcp-ultimate
 
 ### Base Models (all verified working)
 
-SD 1.5, SD 1.5 LCM, SD 1.5 Hyper, SD 2.0, SD 2.1, SDXL 1.0, SDXL Lightning, SDXL Hyper, Flux.1 S, Flux.1 D, Flux.1 Krea, Flux.1 Kontext, Flux.2 D, Flux.2 Klein 9B/4B, Pony, Pony V7, Illustrious, NoobAI, Anima, AuraFlow, Chroma, HiDream, Hunyuan 1, Kolors, PixArt a/E, Lumina, CogVideoX, Hunyuan Video, LTXV/LTXV2, Mochi, Wan Video (all variants)
+SD 1.5, SD 1.5 LCM, SD 1.5 Hyper, SD 2.0, SD 2.1, SDXL 1.0, SDXL Lightning, SDXL Hyper, Flux.1 S, Flux.1 D, Flux.1 Krea, Flux.1 Kontext, Flux.2 D, Flux.2 Klein 9B/4B, Pony, Pony V7, Illustrious, NoobAI, Anima, ZImageBase, AuraFlow, Chroma, HiDream, Hunyuan 1, Kolors, PixArt a/E, Lumina, CogVideoX, Hunyuan Video, LTXV/LTXV2, Mochi, Wan Video (all variants)
 
 ### Model Types
-Checkpoint, LORA, LoCon, TextualInversion, Hypernetwork, Controlnet, Poses, AestheticGradient, Wildcards, MotionModule, VAE, Upscaler, Other
+Checkpoint, LORA, LoCon, TextualInversion, Hypernetwork, Controlnet, Poses, AestheticGradient, Wildcards, MotionModule, VAE, Upscaler, Workflows, Other
 
 ### Image Sort
 Most Reactions, Most Comments, Most Collected, Newest, Oldest
@@ -145,9 +145,27 @@ pytest
 
 ---
 
+## Автор
+
+**Nerual Dreming** ([t.me/nerual_dreming](https://t.me/nerual_dreming)) — [neuro-cartel.com](https://neuro-cartel.com) | основатель [ArtGeneration.me](https://artgeneration.me)
+
+## Другие open-source проекты
+
+| Проект | Описание |
+|--------|----------|
+| [Foundation Music Lab](https://github.com/timoncool/Foundation-Music-Lab) | Генерация музыки + таймлайн-редактор |
+| [VibeVoice ASR](https://github.com/timoncool/VibeVoice_ASR_portable_ru) | Распознавание речи (ASR) |
+| [LavaSR](https://github.com/timoncool/LavaSR_portable) | Портативный ASR на базе Faster-Whisper |
+| [Bulka](https://github.com/timoncool/Bulka) | Браузерный синтезатор live-coded музыки |
+| [mock.dog](https://github.com/timoncool/mock.dog) | AI-генератор мокапов для маркетплейсов |
+
 ## License
 
 MIT
+
+---
+
+> **Если проект полезен — поставьте звездочку!**
 
 ---
 
