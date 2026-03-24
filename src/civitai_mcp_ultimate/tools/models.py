@@ -2,9 +2,8 @@
 
 from typing import Optional
 
-from ..client import CivitaiClient, _sanitize_query
-from ..formatters import format_model_card, format_model_list
-from ..types import BaseModel_, ModelSort, ModelType, Period
+from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError, _sanitize_query
+from ..formatters import format_file_size, format_model_card, format_model_list
 
 
 async def search_models(
@@ -42,11 +41,17 @@ async def search_models(
     if types:
         params["types"] = types
     if base_model:
-        params["baseModels"] = base_model
+        params["baseModels"] = [base_model]
     if nsfw is not None:
         params["nsfw"] = nsfw
 
-    data = await client.get("models", params)
+    try:
+        data = await client.get("models", params)
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    except CivitaiNotFoundError:
+        return "Civitai API endpoint not found."
+
     items = data.get("items", [])
     meta = data.get("metadata", {})
 
@@ -65,9 +70,12 @@ async def get_model(client: CivitaiClient, model_id: int) -> str:
     Returns full model info: description, all versions, files, trigger words,
     stats, creator, tags, download URLs.
     """
-    data = await client.get(f"models/{model_id}")
-    if data.get("error") == "not_found":
+    try:
+        data = await client.get(f"models/{model_id}")
+    except CivitaiNotFoundError:
         return f"Model {model_id} not found"
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
     return format_model_card(data)
 
 
@@ -76,16 +84,23 @@ async def get_model_version(client: CivitaiClient, version_id: int) -> str:
 
     Returns: download URLs, trigger words, base model, files, example images.
     """
-    data = await client.get(f"model-versions/{version_id}")
-    if data.get("error") == "not_found":
+    try:
+        data = await client.get(f"model-versions/{version_id}")
+    except CivitaiNotFoundError:
         return f"Model version {version_id} not found"
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    return _format_version(data)
 
-    v = data
+
+def _format_version(v: dict) -> str:
+    """Format a version dict as markdown."""
+    created = v.get("createdAt") or v.get("publishedAt") or "?"
     lines = [
-        f"## {v.get('name', '?')} (Version ID: {v.get('id')})",
+        f"## {v.get('name', '?')} (Version ID: {v.get('id', '?')})",
         f"**Model ID**: {v.get('modelId', '?')}",
         f"**Base Model**: {v.get('baseModel', '?')}",
-        f"**Created**: {v.get('createdAt', '?')[:10]}",
+        f"**Created**: {created[:10]}",
     ]
     if v.get("trainedWords"):
         lines.append(f"**Trigger Words**: {', '.join(v['trainedWords'])}")
@@ -94,8 +109,6 @@ async def get_model_version(client: CivitaiClient, version_id: int) -> str:
         lines.append(f"**Description**: {desc}")
 
     for f in v.get("files", [])[:5]:
-        from ..formatters import format_file_size
-
         size = format_file_size(f.get("sizeKB", 0))
         lines.append(f"\n**File**: {f.get('name', '?')} ({size})")
         lines.append(f"  Download: `{f.get('downloadUrl', '?')}`")
@@ -105,10 +118,13 @@ async def get_model_version(client: CivitaiClient, version_id: int) -> str:
 
 async def get_model_version_by_hash(client: CivitaiClient, hash: str) -> str:
     """Find a model version by its file hash (SHA256, AutoV2, CRC32)."""
-    data = await client.get(f"model-versions/by-hash/{hash}")
-    if data.get("error") == "not_found":
+    try:
+        data = await client.get(f"model-versions/by-hash/{hash}")
+    except CivitaiNotFoundError:
         return f"No model found for hash {hash}"
-    return await get_model_version(client, data.get("id", 0))
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    return _format_version(data)
 
 
 async def get_top_checkpoints(

@@ -3,7 +3,7 @@
 import os
 from typing import Optional
 
-from ..client import CivitaiClient
+from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError
 from ..formatters import format_download_info
 
 
@@ -11,15 +11,17 @@ async def get_download_url(
     client: CivitaiClient,
     version_id: int,
 ) -> str:
-    """Get authenticated download URL for a model version.
+    """Get download URL for a model version.
 
-    Returns direct download link with API token for authenticated access.
+    Returns download links. Use Authorization header for authenticated access.
     """
-    data = await client.get(f"model-versions/{version_id}")
-    if data.get("error") == "not_found":
+    try:
+        data = await client.get(f"model-versions/{version_id}")
+    except CivitaiNotFoundError:
         return f"Version {version_id} not found"
+    except CivitaiRateLimitError:
+        return "Rate limited. Try again later."
 
-    api_key = client.api_key or ""
     files = data.get("files", [])
     if not files:
         return f"No files found for version {version_id}"
@@ -27,8 +29,9 @@ async def get_download_url(
     lines = []
     for f in files:
         url = f.get("downloadUrl", "")
-        auth_url = f"{url}?token={api_key}" if api_key else url
-        lines.append(f"**{f.get('name', '?')}**: `{auth_url}`")
+        lines.append(f"**{f.get('name', '?')}**: `{url}`")
+    lines.append("")
+    lines.append('_Use `curl -H "Authorization: Bearer $CIVITAI_API_KEY"` for authenticated downloads._')
     return "\n".join(lines)
 
 
@@ -45,9 +48,12 @@ async def get_download_info(
 
     If version_id is not specified, uses the latest version.
     """
-    model_data = await client.get(f"models/{model_id}")
-    if model_data.get("error") == "not_found":
+    try:
+        model_data = await client.get(f"models/{model_id}")
+    except CivitaiNotFoundError:
         return f"Model {model_id} not found"
+    except CivitaiRateLimitError:
+        return "Rate limited. Try again later."
 
     versions = model_data.get("modelVersions", [])
     if not versions:
@@ -57,8 +63,9 @@ async def get_download_info(
         version = next((v for v in versions if v["id"] == version_id), None)
         if not version:
             # Fetch directly
-            version = await client.get(f"model-versions/{version_id}")
-            if version.get("error") == "not_found":
+            try:
+                version = await client.get(f"model-versions/{version_id}")
+            except CivitaiNotFoundError:
                 return f"Version {version_id} not found"
     else:
         version = versions[0]

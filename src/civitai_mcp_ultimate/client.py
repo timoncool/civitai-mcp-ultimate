@@ -4,6 +4,7 @@ Uses Bearer token auth (not query param) for security.
 Includes retry with backoff for rate limits (429).
 """
 
+import asyncio
 import logging
 import os
 import re
@@ -19,11 +20,22 @@ TIMEOUT = 30.0
 MAX_RETRIES = 3
 
 
+class CivitaiError(Exception):
+    """Base exception for Civitai API errors."""
+
+
+class CivitaiRateLimitError(CivitaiError):
+    """Raised when rate limit is exhausted after all retries."""
+
+
+class CivitaiNotFoundError(CivitaiError):
+    """Raised when a resource is not found (404)."""
+
+
 def _sanitize_query(query: str | None) -> str | None:
     """Sanitize search query — remove chars that break Civitai API text search.
 
     Civitai API text search fails on: | () [] {}
-    Learned from Yi-luo-hua/civitai-mcp-server analysis.
     """
     if not query:
         return query
@@ -54,11 +66,18 @@ class CivitaiClient:
             await self._client.aclose()
 
     async def get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Make GET request to Civitai API with retry on 429."""
+        """Make GET request to Civitai API with retry on 429.
+
+        Raises:
+            CivitaiNotFoundError: if 404
+            CivitaiRateLimitError: if 429 after all retries
+            httpx.HTTPStatusError: on other HTTP errors
+            httpx.TimeoutException: on timeout after all retries
+        """
         client = await self._get_client()
         url = f"{API_BASE}/{endpoint.lstrip('/')}"
 
-        # Filter None values and build query string
+        # Build query string using stdlib urlencode with doseq=True
         if params:
             clean_params: dict[str, Any] = {}
             for k, v in params.items():
@@ -67,40 +86,29 @@ class CivitaiClient:
                 if isinstance(v, bool):
                     clean_params[k] = str(v).lower()
                 elif isinstance(v, list):
-                    # Civitai API expects repeated params: types=LORA&types=Checkpoint
-                    for item in v:
-                        clean_params.setdefault(k, [])
-                        if isinstance(clean_params[k], list):
-                            clean_params[k].append(str(item))
-                        else:
-                            clean_params[k] = [clean_params[k], str(item)]
+                    clean_params[k] = [str(item) for item in v]
                 else:
-                    clean_params[k] = v
+                    clean_params[k] = str(v)
 
             if clean_params:
-                query_parts = []
-                for k, v in clean_params.items():
-                    if isinstance(v, list):
-                        for item in v:
-                            query_parts.append(f"{k}={urlencode_value(item)}")
-                    else:
-                        query_parts.append(f"{k}={urlencode_value(v)}")
-                url = f"{url}?{'&'.join(query_parts)}"
-
-        import asyncio
+                url = f"{url}?{urlencode(clean_params, doseq=True)}"
 
         for attempt in range(MAX_RETRIES):
             try:
                 response = await client.get(url)
 
                 if response.status_code == 429:
-                    wait = 2 ** (attempt + 1)
-                    logger.warning(f"Rate limited (429), waiting {wait}s (attempt {attempt + 1}/{MAX_RETRIES})")
-                    await asyncio.sleep(wait)
-                    continue
+                    if attempt < MAX_RETRIES - 1:
+                        wait = 2 ** (attempt + 1)
+                        logger.warning(f"Rate limited (429), waiting {wait}s (attempt {attempt + 1}/{MAX_RETRIES})")
+                        await asyncio.sleep(wait)
+                        continue
+                    raise CivitaiRateLimitError(
+                        f"Rate limited after {MAX_RETRIES} retries. Try again later."
+                    )
 
                 if response.status_code == 404:
-                    return {"error": "not_found", "status": 404}
+                    raise CivitaiNotFoundError(f"Not found: {endpoint}")
 
                 response.raise_for_status()
                 return response.json()
@@ -110,15 +118,10 @@ class CivitaiClient:
                     logger.warning(f"Timeout, retrying (attempt {attempt + 1}/{MAX_RETRIES})")
                     continue
                 raise
+            except (CivitaiNotFoundError, CivitaiRateLimitError):
+                raise
             except httpx.HTTPStatusError as e:
                 logger.error(f"HTTP error {e.response.status_code}: {e.response.text[:200]}")
                 raise
 
-        return {"error": "max_retries_exceeded"}
-
-
-def urlencode_value(v: Any) -> str:
-    """URL-encode a single value."""
-    from urllib.parse import quote
-
-    return quote(str(v), safe="")
+        raise CivitaiRateLimitError(f"Exhausted {MAX_RETRIES} retries")

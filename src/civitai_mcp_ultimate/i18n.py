@@ -14,7 +14,7 @@ def t(en: str, ru: str) -> str:
 L_TYPE = t("Type", "Тип")
 L_CREATOR = t("Creator", "Автор")
 L_RATING = t("Rating", "Рейтинг")
-L_DOWNLOADS = t("Скачивания", "Скачивания") if LANG == "ru" else "Downloads"
+L_DOWNLOADS = t("Downloads", "Скачивания")
 L_FAVORITES = t("Favorites", "Избранное")
 L_TAGS = t("Tags", "Теги")
 L_BASE_MODEL = t("Base Model", "Базовая модель")

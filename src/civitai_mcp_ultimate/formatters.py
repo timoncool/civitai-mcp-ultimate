@@ -45,7 +45,7 @@ def format_model_card(model: dict[str, Any]) -> str:
         tags = [tag["name"] for tag in tags]
 
     lines = [
-        f"## {model['name']} (ID: {model['id']})",
+        f"## {model.get('name', '?')} (ID: {model.get('id', '?')})",
         "",
         f"**{L_TYPE}**: {model.get('type', '?')} | **{L_BASE_MODEL}**: {_get_base_model(model)}",
         f"**{L_CREATOR}**: {creator.get('username', '?')}",
@@ -67,7 +67,8 @@ def format_model_card(model: dict[str, Any]) -> str:
         lines.append(f"- **{L_BASE_MODEL}**: {v.get('baseModel', '?')}")
         if v.get("trainedWords"):
             lines.append(f"- **{L_TRIGGER_WORDS}**: {', '.join(v['trainedWords'])}")
-        lines.append(f"- **{L_CREATED}**: {v.get('publishedAt', v.get('createdAt', '?'))[:10]}")
+        created = v.get("publishedAt") or v.get("createdAt") or "?"
+        lines.append(f"- **{L_CREATED}**: {created[:10]}")
 
         # Files
         for f in v.get("files", [])[:3]:
@@ -97,7 +98,7 @@ def format_model_short(model: dict[str, Any]) -> str:
     base_model = _get_base_model(model)
 
     return (
-        f"**{model['name']}** (ID: {model['id']}) — {model.get('type', '?')}\n"
+        f"**{model.get('name', '?')}** (ID: {model.get('id', '?')}) — {model.get('type', '?')}\n"
         f"  {L_CREATOR}: {creator.get('username', '?')} | "
         f"{L_BASE_MODEL}: {base_model} | "
         f"{L_DOWNLOADS}: {dl:,} | Thumbs: {thumbs:,}"
@@ -187,29 +188,32 @@ def format_download_info(
     """Format download info with curl/PowerShell commands."""
     model_type = model.get("type", "Other")
     lines = [
-        f"## {L_DOWNLOAD}: {model['name']} — {version.get('name', '?')}",
+        f"## {L_DOWNLOAD}: {model.get('name', '?')} — {version.get('name', '?')}",
         "",
     ]
 
     for f in version.get("files", []):
         url = f.get("downloadUrl", "")
-        auth_url = f"{url}?token={api_key}" if api_key else url
         name = f.get("name", "model")
         size = format_file_size(f.get("sizeKB", 0))
 
         lines.append(f"### {name} ({size})")
-        lines.append(f"**URL**: `{auth_url}`")
+        lines.append(f"**URL**: `{url}`")
 
-        # curl command
+        # curl command — use env var for API key, never expose in output
         lines.append(f"\n**curl**:")
         lines.append(f"```bash")
-        lines.append(f'curl -L -o "{name}" "{auth_url}"')
+        lines.append(f'curl -L -H "Authorization: Bearer $CIVITAI_API_KEY" -o "{name}" "{url}"')
         lines.append(f"```")
 
         # PowerShell command
         lines.append(f"\n**PowerShell**:")
         lines.append(f"```powershell")
-        lines.append(f'Invoke-WebRequest -Uri "{auth_url}" -OutFile "{name}"')
+        lines.append(
+            f'Invoke-WebRequest -Uri "{url}" '
+            f'-Headers @{{"Authorization"="Bearer $env:CIVITAI_API_KEY"}} '
+            f'-OutFile "{name}"'
+        )
         lines.append(f"```")
 
         # ComfyUI path
