@@ -6,6 +6,24 @@ import httpx
 
 from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError
 from ..formatters import format_image, format_image_list
+from ..image_cache import download_images
+
+
+async def _format_with_downloads(
+    images: list[dict],
+    include_prompts: bool = True,
+) -> str:
+    """Format images + download them to cache, append local paths."""
+    result = format_image_list(images, include_prompts=include_prompts)
+
+    # Download in background, attach local paths
+    cached = await download_images(images)
+    if cached:
+        result += "\n\n---\n**Cached previews** (use Read tool to view):\n"
+        for img_id, path in cached.items():
+            result += f"- Image {img_id}: `{path}`\n"
+
+    return result
 
 
 async def browse_images(
@@ -49,7 +67,7 @@ async def browse_images(
     items = data.get("items", [])
     if not items:
         return "No images found with these filters."
-    result = format_image_list(items, include_prompts=True)
+    result = await _format_with_downloads(items, include_prompts=True)
     # Surface cursor for pagination
     meta = data.get("metadata", {})
     if meta.get("nextCursor"):
@@ -135,4 +153,4 @@ async def get_image_generation_data(
     if not with_meta:
         return f"Found {len(items)} images but none have generation metadata."
 
-    return format_image_list(with_meta, include_prompts=True)
+    return await _format_with_downloads(with_meta, include_prompts=True)

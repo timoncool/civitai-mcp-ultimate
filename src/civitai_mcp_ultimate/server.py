@@ -22,7 +22,10 @@ client = CivitaiClient()
 
 @asynccontextmanager
 async def lifespan(server):
-    """Manage client lifecycle."""
+    """Manage client lifecycle + cache cleanup."""
+    from .image_cache import cleanup_cache
+
+    cleanup_cache()
     yield
     await client.close()
 
