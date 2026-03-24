@@ -170,19 +170,38 @@ async def browse_images(
     limit: int = 10,
     page: Optional[int] = None,
     content_type: Optional[str] = None,
+    browsing_level: Optional[str] = None,
+    tag: Optional[str] = None,
+    base_model: Optional[str] = None,
+    tools: Optional[str] = None,
+    techniques: Optional[str] = None,
+    has_meta: Optional[bool] = None,
+    made_on_site: Optional[bool] = None,
+    originals_only: Optional[bool] = None,
+    remixes_only: Optional[bool] = None,
 ) -> str:
-    """Browse AI-generated images on Civitai.
+    """Browse AI-generated images/videos on Civitai.
 
-    Filter by model, creator, post, NSFW level.
     Sort: Most Reactions, Most Comments, Most Collected, Newest, Oldest.
     NSFW filter: None, Soft, Mature, X.
-    content_type: "image" for images only, "video" for videos only, None for all.
-    Returns images with URLs, stats, and full generation parameters.
-    Downloaded previews are cached locally for viewing via Read tool.
+    content_type: "image" or "video".
+    browsing_level: "PG", "PG-13", "R", "X", "XXX" (comma-separated for multiple).
+    tag: filter by tag (e.g. "anime", "animal", "architecture").
+    base_model: filter by base model (e.g. "Flux.1 D", "SDXL 1.0", "Pony").
+    tools: filter by tool (e.g. "ComfyUI", "Automatic1111").
+    techniques: filter by technique (e.g. "txt2img", "img2img").
+    has_meta: true = only with generation metadata.
+    made_on_site: true = only generated on Civitai.
+    originals_only/remixes_only: filter originals vs remixes.
+    Previews are cached locally (~/.civitai-mcp-cache/) for viewing via Read tool.
     """
     from .tools.images import browse_images as _browse
 
-    return await _browse(client, model_id, model_version_id, post_id, username, nsfw, sort, period, limit, page, content_type)
+    return await _browse(
+        client, model_id, model_version_id, post_id, username, nsfw, sort, period, limit, page,
+        content_type, browsing_level, tag, base_model, tools, techniques,
+        has_meta, made_on_site, originals_only, remixes_only,
+    )
 
 
 @mcp.tool
@@ -192,18 +211,33 @@ async def get_top_images(
     nsfw: Optional[str] = None,
     limit: int = 10,
     content_type: Optional[str] = None,
+    browsing_level: Optional[str] = None,
+    tag: Optional[str] = None,
+    base_model: Optional[str] = None,
+    tools: Optional[str] = None,
+    techniques: Optional[str] = None,
+    has_meta: Optional[bool] = None,
+    made_on_site: Optional[bool] = None,
+    originals_only: Optional[bool] = None,
+    remixes_only: Optional[bool] = None,
 ) -> str:
-    """Get top images from Civitai — best for finding great prompts.
+    """Get top images/videos from Civitai — best for finding great prompts.
 
     Sort: Most Reactions, Most Comments, Most Collected, Newest, Oldest.
     Period: Day, Week, Month, Year, AllTime.
-    Set nsfw to filter NSFW level.
-    content_type: "image" for images only, "video" for videos only, None for all.
-    Downloaded previews are cached locally for viewing via Read tool.
+    content_type: "image" or "video".
+    browsing_level: "PG", "PG-13", "R", "X", "XXX" (comma-separated).
+    tag/base_model/tools/techniques: additional filters.
+    has_meta/made_on_site/originals_only/remixes_only: boolean modifiers.
+    Previews cached locally for Read tool.
     """
     from .tools.images import get_top_images as _get
 
-    return await _get(client, sort, period, nsfw, limit, content_type)
+    return await _get(
+        client, sort, period, nsfw, limit, content_type, browsing_level,
+        tag, base_model, tools, techniques, has_meta, made_on_site,
+        originals_only, remixes_only,
+    )
 
 
 @mcp.tool

@@ -7,6 +7,7 @@ import httpx
 from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError
 from ..formatters import format_image, format_image_list
 from ..image_cache import download_images
+from ..types import parse_browsing_level
 
 
 async def _format_with_downloads(
@@ -38,12 +39,30 @@ async def browse_images(
     limit: int = 10,
     page: Optional[int] = None,
     content_type: Optional[str] = None,
+    browsing_level: Optional[str] = None,
+    tag: Optional[str] = None,
+    base_model: Optional[str] = None,
+    tools: Optional[str] = None,
+    techniques: Optional[str] = None,
+    has_meta: Optional[bool] = None,
+    made_on_site: Optional[bool] = None,
+    originals_only: Optional[bool] = None,
+    remixes_only: Optional[bool] = None,
 ) -> str:
-    """Browse AI-generated images on Civitai.
+    """Browse AI-generated images/videos on Civitai.
 
-    Filter by model, creator, post, NSFW level. Sort by reactions, comments, or date.
-    content_type: "image" or "video" — filters server-side via Civitai API type param.
-    Returns images with URLs, stats, and generation parameters (prompts).
+    Filters: model, creator, post, NSFW level, tag, base model, tools, techniques.
+    Sort: Most Reactions, Most Comments, Most Collected, Newest, Oldest.
+    content_type: "image" or "video".
+    browsing_level: "PG", "PG-13", "R", "X", "XXX" (comma-separated for multiple).
+    tag: filter by tag (e.g. "anime", "animal", "architecture").
+    base_model: filter by base model (e.g. "Flux.1 D", "SDXL 1.0").
+    tools: filter by tool used (e.g. "ComfyUI", "Automatic1111").
+    techniques: filter by technique (e.g. "txt2img", "img2img").
+    has_meta: true = only images with generation metadata.
+    made_on_site: true = only images generated on Civitai.
+    originals_only: true = exclude remixes.
+    remixes_only: true = only remixes.
     """
     params: dict = {
         "modelId": model_id,
@@ -56,9 +75,27 @@ async def browse_images(
         "limit": min(limit, 200),
         "page": page,
     }
-    # Server-side content type filter (undocumented but works)
+    # Undocumented but working params (verified 2026-03-24)
     if content_type:
         params["type"] = content_type.lower().strip()
+    if browsing_level:
+        params["browsingLevel"] = parse_browsing_level(browsing_level)
+    if tag:
+        params["tag"] = tag
+    if base_model:
+        params["baseModel"] = base_model
+    if tools:
+        params["tools"] = tools
+    if techniques:
+        params["techniques"] = techniques
+    if has_meta is not None:
+        params["hasMeta"] = has_meta
+    if made_on_site is not None:
+        params["madeOnSite"] = made_on_site
+    if originals_only is not None:
+        params["originalsOnly"] = originals_only
+    if remixes_only is not None:
+        params["remixesOnly"] = remixes_only
 
     try:
         data = await client.get("images", params)
@@ -90,13 +127,27 @@ async def get_top_images(
     nsfw: Optional[str] = None,
     limit: int = 10,
     content_type: Optional[str] = None,
+    browsing_level: Optional[str] = None,
+    tag: Optional[str] = None,
+    base_model: Optional[str] = None,
+    tools: Optional[str] = None,
+    techniques: Optional[str] = None,
+    has_meta: Optional[bool] = None,
+    made_on_site: Optional[bool] = None,
+    originals_only: Optional[bool] = None,
+    remixes_only: Optional[bool] = None,
 ) -> str:
-    """Get top images from Civitai by reactions, comments, or collections.
+    """Get top images/videos from Civitai — best for finding great prompts.
 
-    Perfect for finding the best prompts and generation parameters.
-    Sort options: Most Reactions, Most Comments, Most Collected, Newest, Oldest.
+    Sort: Most Reactions, Most Comments, Most Collected, Newest, Oldest.
     Period: Day, Week, Month, Year, AllTime.
-    content_type: "image" or "video" to filter by media type.
+    content_type: "image" or "video".
+    browsing_level: "PG", "PG-13", "R", "X", "XXX" (comma-separated).
+    tag: filter by tag (e.g. "anime", "animal").
+    base_model: filter by base model (e.g. "Flux.1 D").
+    tools: filter by tool (e.g. "ComfyUI").
+    techniques: filter by technique (e.g. "txt2img").
+    has_meta/made_on_site/originals_only/remixes_only: boolean modifiers.
     """
     return await browse_images(
         client,
@@ -105,6 +156,15 @@ async def get_top_images(
         nsfw=nsfw,
         limit=limit,
         content_type=content_type,
+        browsing_level=browsing_level,
+        tag=tag,
+        base_model=base_model,
+        tools=tools,
+        techniques=techniques,
+        has_meta=has_meta,
+        made_on_site=made_on_site,
+        originals_only=originals_only,
+        remixes_only=remixes_only,
     )
 
 
@@ -113,12 +173,7 @@ async def get_model_images(
     model_id: int,
     limit: int = 5,
 ) -> str:
-    """Get example images generated with a specific model.
-
-    Returns images with full generation parameters: prompt, negative prompt,
-    steps, CFG, sampler, seed, and LoRAs used. Great for learning how to
-    use a model effectively.
-    """
+    """Get example images generated with a specific model."""
     return await browse_images(
         client,
         model_id=model_id,
@@ -134,34 +189,12 @@ async def get_image_generation_data(
     sort: str = "Most Reactions",
     limit: int = 3,
 ) -> str:
-    """Get full generation parameters from top images of a model.
-
-    Focused on extracting the best prompts, settings, and LoRA combinations
-    used by the community. Use this to learn optimal generation parameters.
-    """
-    params = {
-        "modelId": model_id,
-        "sort": sort,
-        "period": "AllTime",
-        "limit": min(limit, 20),
-    }
-    try:
-        data = await client.get("images", params)
-    except CivitaiRateLimitError:
-        return "Rate limited by Civitai API. Please try again in a few seconds."
-    except CivitaiNotFoundError:
-        return "Civitai images endpoint not found."
-    except httpx.TimeoutException:
-        return "Civitai API timed out. Please try again."
-    except httpx.HTTPStatusError as e:
-        return f"Civitai API error: HTTP {e.response.status_code}"
-    items = data.get("items", [])
-    if not items:
-        return f"No images found for model {model_id}"
-
-    # Only include images that have generation metadata
-    with_meta = [img for img in items if img.get("meta")]
-    if not with_meta:
-        return f"Found {len(items)} images but none have generation metadata."
-
-    return await _format_with_downloads(with_meta, include_prompts=True)
+    """Get full generation parameters from top images of a model."""
+    return await browse_images(
+        client,
+        model_id=model_id,
+        sort=sort,
+        period="AllTime",
+        limit=limit,
+        has_meta=True,
+    )

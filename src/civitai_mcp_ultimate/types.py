@@ -57,6 +57,10 @@ class BaseModel_(str, Enum):
     ANIMA = "Anima"
     # Z-Image
     ZIMAGE_BASE = "ZImageBase"
+    ZIMAGE_TURBO = "ZImageTurbo"
+    # Additional
+    QWEN = "Qwen"
+    SD_14 = "SD 1.4"
     # Other image models
     AURAFLOW = "AuraFlow"
     CHROMA = "Chroma"
@@ -75,6 +79,11 @@ class BaseModel_(str, Enum):
     MOCHI = "Mochi"
     WAN_VIDEO_13B_T2V = "Wan Video 1.3B t2v"
     WAN_VIDEO_14B_T2V = "Wan Video 14B t2v"
+    WAN_VIDEO_14B_I2V_480P = "Wan Video 14B i2v 480p"
+    WAN_VIDEO_14B_I2V_720P = "Wan Video 14B i2v 720p"
+    WAN_VIDEO_22_TI2V_5B = "Wan Video 2.2 TI2V-5B"
+    WAN_VIDEO_22_I2V_A14B = "Wan Video 2.2 I2V-A14B"
+    WAN_VIDEO_22_T2V_A14B = "Wan Video 2.2 T2V-A14B"
     WAN_VIDEO_25_I2V = "Wan Video 2.5 I2V"
     WAN_VIDEO_25_T2V = "Wan Video 2.5 T2V"
 
@@ -116,6 +125,32 @@ class CommercialUse(str, Enum):
     RENT = "Rent"
     RENT_CIVIT = "RentCivit"
     SELL = "Sell"
+
+
+# Browsing level bitmask (undocumented, verified 2026-03-24)
+# Can be combined: PG+PG13 = 3, PG+PG13+R = 7, all = 31
+BROWSING_LEVEL_MAP: dict[str, int] = {
+    "PG": 1,
+    "PG-13": 2,
+    "PG13": 2,
+    "R": 4,
+    "X": 8,
+    "XXX": 16,
+}
+
+
+def parse_browsing_level(level: str) -> int:
+    """Convert browsing level string(s) to bitmask.
+
+    Accepts: single level ("X"), multiple comma-separated ("R,X,XXX"),
+    or "all" for everything.
+    """
+    if not level or level.lower() == "all":
+        return 31
+    mask = 0
+    for part in level.upper().replace(" ", "").split(","):
+        mask |= BROWSING_LEVEL_MAP.get(part, 0)
+    return mask or 31  # fallback to all if nothing matched
 
 
 # ComfyUI model type -> subfolder mapping
