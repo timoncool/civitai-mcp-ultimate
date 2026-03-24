@@ -83,6 +83,10 @@ async def get_model(client: CivitaiClient, model_id: int) -> str:
         return f"Model {model_id} not found"
     except CivitaiRateLimitError:
         return "Rate limited by Civitai API. Please try again in a few seconds."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
     return format_model_card(data)
 
 
@@ -97,12 +101,16 @@ async def get_model_version(client: CivitaiClient, version_id: int) -> str:
         return f"Model version {version_id} not found"
     except CivitaiRateLimitError:
         return "Rate limited by Civitai API. Please try again in a few seconds."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
     return _format_version(data)
 
 
 def _format_version(v: dict) -> str:
     """Format a version dict as markdown."""
-    created = v.get("createdAt") or v.get("publishedAt") or "?"
+    created = str(v.get("publishedAt") or v.get("createdAt") or "?")
     lines = [
         f"## {v.get('name', '?')} (Version ID: {v.get('id', '?')})",
         f"**Model ID**: {v.get('modelId', '?')}",
@@ -131,6 +139,10 @@ async def get_model_version_by_hash(client: CivitaiClient, hash: str) -> str:
         return f"No model found for hash {hash}"
     except CivitaiRateLimitError:
         return "Rate limited by Civitai API. Please try again in a few seconds."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
     return _format_version(data)
 
 

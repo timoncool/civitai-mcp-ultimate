@@ -3,6 +3,8 @@
 import os
 from typing import Optional
 
+import httpx
+
 from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError
 from ..formatters import format_download_info
 
@@ -21,6 +23,10 @@ async def get_download_url(
         return f"Version {version_id} not found"
     except CivitaiRateLimitError:
         return "Rate limited. Try again later."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
 
     files = data.get("files", [])
     if not files:
@@ -54,6 +60,10 @@ async def get_download_info(
         return f"Model {model_id} not found"
     except CivitaiRateLimitError:
         return "Rate limited. Try again later."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
 
     versions = model_data.get("modelVersions", [])
     if not versions:
@@ -67,6 +77,8 @@ async def get_download_info(
                 version = await client.get(f"model-versions/{version_id}")
             except CivitaiNotFoundError:
                 return f"Version {version_id} not found"
+            except (CivitaiRateLimitError, httpx.TimeoutException, httpx.HTTPStatusError):
+                return f"Failed to fetch version {version_id}"
     else:
         version = versions[0]
 
@@ -75,6 +87,5 @@ async def get_download_info(
     return format_download_info(
         model=model_data,
         version=version,
-        api_key=client.api_key or "",
         comfyui_path=comfyui,
     )

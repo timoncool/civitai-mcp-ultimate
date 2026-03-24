@@ -90,7 +90,6 @@ class CivitaiClient:
             httpx.HTTPStatusError: on other HTTP errors
             httpx.TimeoutException: on timeout after all retries
         """
-        client = await self._get_client()
         url = f"{API_BASE}/{endpoint.lstrip('/')}"
 
         # Build query string using stdlib urlencode with doseq=True
@@ -111,6 +110,8 @@ class CivitaiClient:
 
         for attempt in range(MAX_RETRIES):
             try:
+                # Re-acquire client each attempt in case connection was dropped
+                client = await self._get_client()
                 response = await client.get(url)
 
                 if response.status_code == 429:

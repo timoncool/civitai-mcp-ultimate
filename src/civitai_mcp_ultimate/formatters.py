@@ -3,6 +3,7 @@
 All output is human-readable markdown, bilingual (EN/RU).
 """
 
+import os
 from typing import Any
 
 from .i18n import (
@@ -67,7 +68,7 @@ def format_model_card(model: dict[str, Any]) -> str:
         lines.append(f"- **{L_BASE_MODEL}**: {v.get('baseModel', '?')}")
         if v.get("trainedWords"):
             lines.append(f"- **{L_TRIGGER_WORDS}**: {', '.join(v['trainedWords'])}")
-        created = v.get("publishedAt") or v.get("createdAt") or "?"
+        created = str(v.get("publishedAt") or v.get("createdAt") or "?")
         lines.append(f"- **{L_CREATED}**: {created[:10]}")
 
         # Files
@@ -182,7 +183,6 @@ def format_tag(tag: dict[str, Any]) -> str:
 def format_download_info(
     model: dict[str, Any],
     version: dict[str, Any],
-    api_key: str = "",
     comfyui_path: str = "",
 ) -> str:
     """Format download info with curl/PowerShell commands."""
@@ -221,7 +221,7 @@ def format_download_info(
             from .types import COMFYUI_FOLDER_MAP
 
             subfolder = COMFYUI_FOLDER_MAP.get(model_type, "other")
-            target = f"{comfyui_path}/{subfolder}/{name}"
+            target = os.path.join(comfyui_path, subfolder, name)
             lines.append(f"\n**ComfyUI path**: `{target}`")
             lines.append(f"```bash")
             lines.append(f'curl -L -H "Authorization: Bearer $CIVITAI_API_KEY" -o "{target}" "{url}"')
