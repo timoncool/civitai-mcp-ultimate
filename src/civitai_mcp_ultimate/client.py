@@ -32,6 +32,22 @@ class CivitaiNotFoundError(CivitaiError):
     """Raised when a resource is not found (404)."""
 
 
+def _strip_invisible(text: str) -> str:
+    """Strip zero-width and invisible Unicode characters that break Windows terminals."""
+    return re.sub(r"[\u200b\u200c\u200d\u200e\u200f\ufeff\u2060\u2028\u2029]", "", text)
+
+
+def _sanitize_response(obj: Any) -> Any:
+    """Recursively strip invisible chars from all strings in API response."""
+    if isinstance(obj, str):
+        return _strip_invisible(obj)
+    if isinstance(obj, dict):
+        return {k: _sanitize_response(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_sanitize_response(item) for item in obj]
+    return obj
+
+
 def _sanitize_query(query: str | None) -> str | None:
     """Sanitize search query — remove chars that break Civitai API text search.
 
@@ -111,7 +127,7 @@ class CivitaiClient:
                     raise CivitaiNotFoundError(f"Not found: {endpoint}")
 
                 response.raise_for_status()
-                return response.json()
+                return _sanitize_response(response.json())
 
             except httpx.TimeoutException:
                 if attempt < MAX_RETRIES - 1:
