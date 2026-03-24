@@ -1,0 +1,62 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "civitai-mcp-ultimate"
+version = "0.1.0"
+description = "Ultimate MCP server for Civitai API — search models, browse top images with prompts, download LoRAs/Checkpoints, analyze trends"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [
+    { name = "timoncool", email = "timoncool@gmail.com" },
+]
+keywords = [
+    "mcp",
+    "civitai",
+    "stable-diffusion",
+    "ai-models",
+    "lora",
+    "flux",
+    "sdxl",
+    "comfyui",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "fastmcp>=2.0.0",
+    "httpx>=0.25.0",
+    "pydantic>=2.0.0",
+]
+
+[project.scripts]
+civitai-mcp-ultimate = "civitai_mcp_ultimate.server:main"
+
+[project.urls]
+Homepage = "https://github.com/timoncool/civitai-mcp-ultimate"
+Repository = "https://github.com/timoncool/civitai-mcp-ultimate"
+Issues = "https://github.com/timoncool/civitai-mcp-ultimate/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/civitai_mcp_ultimate"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
