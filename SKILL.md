@@ -195,9 +195,10 @@ get_top_checkpoints(base_model="SDXL 1.0", period="Month", sort="Most Downloaded
 3. **get_creators**: Civitai endpoint is slow (30s+) and may return 500. Use `search_models(username=...)` instead.
 4. **"Most Reactions" sort cursor bug**: Returns null cursor, preventing pagination beyond page 1.
 5. **License filters** (`allow_no_credit`, etc.): Civitai API may return 400.
-6. **get_model_images vs browse_images(model_id)**: Both return the same results — no separation between author's examples and community images.
+6. **get_model_images vs browse_images(model_id)**: Both hit the same endpoint — no API-level separation between author's examples and community images. `get_model_images` may return HTTP 500 on some models; use `browse_images(model_id=ID)` as a reliable alternative.
 7. **browsingLevel**: Bitmask system (1=PG, 2=PG-13, 4=R, 8=X, 16=XXX). Undocumented but stable.
 8. **content_type/tag/tools/techniques**: All undocumented API params but verified working 2026-03-24.
+9. **get_tags**: No NSFW filter available. Returns generic tags (character, anime, woman...) without model counts. Cannot query "top NSFW tags" — use `browse_images(browsing_level="X,XXX")` and inspect tags on returned images instead.
 
 ## Environment Variables
 
