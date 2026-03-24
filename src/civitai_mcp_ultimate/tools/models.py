@@ -58,6 +58,8 @@ async def search_models(
         return "Civitai API endpoint not found."
     except httpx.TimeoutException:
         return "Civitai API timed out. Please try again."
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
 
     items = data.get("items", [])
     meta = data.get("metadata", {})

@@ -42,6 +42,8 @@ async def browse_images(
         return "Civitai images endpoint not found."
     except httpx.TimeoutException:
         return "Civitai API timed out. Please try again."
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
     items = data.get("items", [])
     if not items:
         return "No images found with these filters."
@@ -115,6 +117,8 @@ async def get_image_generation_data(
         return "Civitai images endpoint not found."
     except httpx.TimeoutException:
         return "Civitai API timed out. Please try again."
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
     items = data.get("items", [])
     if not items:
         return f"No images found for model {model_id}"
