@@ -31,15 +31,18 @@ async def search_models(
     - Model names with special chars may not match — use simple keywords
     - If you know the model ID, use get_model instead
     """
+    sanitized_query = _sanitize_query(query)
     params: dict = {
-        "query": _sanitize_query(query),
+        "query": sanitized_query,
         "tag": tag,
         "username": username,
         "sort": sort,
         "period": period,
         "limit": min(limit, 100),
-        "page": page,
     }
+    # Civitai API doesn't allow page param with query search — cursor-based only
+    if not sanitized_query:
+        params["page"] = page
     if types:
         params["types"] = types
     if base_model:

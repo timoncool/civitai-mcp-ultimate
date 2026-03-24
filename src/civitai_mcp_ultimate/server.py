@@ -18,8 +18,7 @@ from .types import BaseModel_, ImageSort, ModelSort, ModelType, NsfwLevel, Perio
 
 mcp = FastMCP(
     name="civitai-mcp-ultimate",
-    version="0.1.0",
-    description="Ultimate MCP server for Civitai — search models, browse top images with prompts, download LoRAs/Checkpoints, analyze trends.",
+    instructions="Ultimate MCP server for Civitai — search models, browse top images with prompts, download LoRAs/Checkpoints, analyze trends.",
 )
 
 client = CivitaiClient()
