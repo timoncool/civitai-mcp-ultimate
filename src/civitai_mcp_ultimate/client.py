@@ -69,7 +69,7 @@ class CivitaiClient:
     async def _get_client(self) -> httpx.AsyncClient:
         async with self._lock:
             if self._client is None or self._client.is_closed:
-                headers = {"User-Agent": "civitai-mcp-ultimate/0.1.0"}
+                headers = {"User-Agent": "civitai-mcp-ultimate/0.2.0"}
                 if self.api_key:
                     headers["Authorization"] = f"Bearer {self.api_key}"
                 self._client = httpx.AsyncClient(

@@ -9,7 +9,7 @@ description: Ultimate MCP server for Civitai — search models, browse top image
 
 | Goal | Tool | Key Params |
 |------|------|-----------|
-| Find models by name | `search_models` | `query`, `types`, `base_model` |
+| Find models by name | `search_models` | `query` (Meilisearch), `types`, `base_model` |
 | Find models by creator | `search_models` | `username` (most reliable) |
 | Batch fetch by IDs | `search_models` | `ids=[123, 456]` |
 | Full model details | `get_model` | `model_id` |
@@ -60,9 +60,9 @@ get_top_images(sort="Most Reactions", period="Month", content_type="image", brow
 
 ### Find a specific LoRA by name (e.g. hands fix)
 ```
-search_models(query="hands", types=["LORA"], sort="Most Downloaded", limit=5)
+search_models(query="hands fix", types=["LORA"], sort="Most Downloaded", limit=5)
 ```
-**NOTE**: Don't combine `query` with `base_model` — returns empty. Search first, then check base model in results.
+**NOTE**: Text search uses Meilisearch (fast, accurate). Combining `query` + `types` + `base_model` works via Meilisearch! Falls back to REST API only when using REST-only params (ids, favorites, license filters).
 
 ### Top 10 LoRA by downloads this month
 ```
@@ -163,7 +163,8 @@ get_top_checkpoints(base_model="SDXL 1.0", period="Month", sort="Most Downloaded
 | Video | `CogVideoX`, `Hunyuan Video`, `LTXV`, `LTXV2`, `LTXV 2.3`, `Mochi`, `Wan Video 1.3B t2v`, `Wan Video 14B t2v`, `Wan Video 14B i2v 480p/720p`, `Wan Video 2.2 TI2V-5B/I2V-A14B/T2V-A14B`, `Wan Video 2.5 I2V/T2V` |
 
 ### Sort
-- Models: `Highest Rated`, `Most Downloaded`, `Newest`
+- Models (Meilisearch): `Most Downloaded`, `Highest Rated`, `Most Collected`, `Most Comments`, `Most Tipped`, `Newest`, `Oldest`
+- Models (REST API): `Highest Rated`, `Most Downloaded`, `Newest`
 - Images/Videos: `Most Reactions`, `Most Comments`, `Most Collected`, `Newest`, `Oldest`
 
 ### Period
@@ -189,7 +190,7 @@ get_top_checkpoints(base_model="SDXL 1.0", period="Month", sort="Most Downloaded
 
 ## Known Quirks
 
-1. **search_models: query + types/base_model = empty results**. Civitai uses cursor pagination when `query` is set, and `types`/`base_model` filters may not work together with text search. Workaround: search by `query` alone, then filter results manually.
+1. **search_models via REST API: query + types/base_model = empty results**. Fixed in v0.2.0 — text search now uses Meilisearch which supports combining query with type/baseModel/tag/username filters. REST API fallback still has this limitation.
 2. **search_models by username**: Most reliable search method. Always prefer `username="CreatorName"`.
 3. **get_creators**: Civitai endpoint is slow (30s+) and may return 500. Use `search_models(username=...)` instead.
 4. **"Most Reactions" sort cursor bug**: Returns null cursor, preventing pagination beyond page 1.
@@ -204,4 +205,5 @@ get_top_checkpoints(base_model="SDXL 1.0", period="Month", sort="Most Downloaded
 CIVITAI_API_KEY     — Civitai API key (NSFW access + higher rate limits)
 CIVITAI_MCP_LANG    — en (default) | ru
 COMFYUI_MODELS_PATH — default ComfyUI models path for download_info
+MEILISEARCH_KEY     — Meilisearch search-only key (optional, has built-in default)
 ```

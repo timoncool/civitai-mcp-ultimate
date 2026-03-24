@@ -7,6 +7,7 @@ Environment:
     CIVITAI_API_KEY — your Civitai API key (required for NSFW + higher rate limits)
     CIVITAI_MCP_LANG — output language: en (default) | ru
     COMFYUI_MODELS_PATH — path to ComfyUI models dir (for download_info)
+    MEILISEARCH_KEY — Meilisearch API key (optional, has default public key)
 """
 
 from contextlib import asynccontextmanager
@@ -28,6 +29,10 @@ async def lifespan(server):
     cleanup_cache()
     yield
     await client.close()
+    # Close Meilisearch client if it was initialized
+    from .tools.models import _meili
+    if _meili:
+        await _meili.close()
 
 
 mcp = FastMCP(
@@ -66,18 +71,19 @@ async def search_models(
 ) -> str:
     """Search for AI models on Civitai with flexible filters.
 
+    Uses Meilisearch for text queries (fast, accurate results).
+    Falls back to REST API for filter-only queries, batch IDs, favorites, etc.
+
     Find checkpoints, LoRAs, ControlNets and more.
     Types: Checkpoint, LORA, LoCon, TextualInversion, Hypernetwork, Controlnet, Poses, VAE, Upscaler, Wildcards, MotionModule, Workflows, Other.
     Base models: SD 1.5, SDXL 1.0, Flux.1 D, Flux.2 D, Pony, Illustrious, NoobAI, Hunyuan 1, Kolors, Chroma, ZImageBase, etc.
-    Sort: Highest Rated, Most Downloaded, Newest.
-    Period: AllTime, Year, Month, Week, Day.
-    Commercial use filter: None, Image, Rent, RentCivit, Sell.
-    License filters: allow_no_credit, allow_derivatives, allow_different_licenses.
+    Sort: Highest Rated, Most Downloaded, Most Collected, Most Comments, Most Tipped, Newest.
+    Period: AllTime, Year, Month, Week, Day (REST API only).
+    Commercial use filter: None, Image, Rent, RentCivit, Sell (REST API only).
 
-    Tips: search by username is most reliable. Use get_model if you know the ID.
-    Note: page parameter is ignored when query is specified (Civitai uses cursor-based pagination for text search).
-    Set favorites=true or hidden=true to filter your own models (requires API key).
-    Set ids to fetch specific models by ID in batch.
+    Tips: text search works best via Meilisearch. Use get_model if you know the ID.
+    Set favorites=true or hidden=true to filter your own models (requires API key, REST API).
+    Set ids to fetch specific models by ID in batch (REST API).
     """
     from .tools.models import search_models as _search
 

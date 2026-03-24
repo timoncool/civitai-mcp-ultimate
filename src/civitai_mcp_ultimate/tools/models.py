@@ -1,11 +1,25 @@
 """Model-related MCP tools."""
 
+import logging
 from typing import Optional
 
 import httpx
 
 from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError, _sanitize_query
 from ..formatters import format_file_size, format_model_card, format_model_list
+from ..meilisearch import MeilisearchClient, MeilisearchError, format_meilisearch_results
+
+logger = logging.getLogger(__name__)
+
+# Module-level Meilisearch client (lazy init)
+_meili: MeilisearchClient | None = None
+
+
+def _get_meili() -> MeilisearchClient:
+    global _meili
+    if _meili is None:
+        _meili = MeilisearchClient()
+    return _meili
 
 
 async def search_models(
@@ -35,11 +49,35 @@ async def search_models(
     Find checkpoints, LoRAs, ControlNets and more. Filter by type, base model,
     creator, tags. Sort by downloads, rating, or newest.
 
-    Tips:
-    - Search by username (creator) is most reliable
-    - Model names with special chars may not match — use simple keywords
-    - If you know the model ID, use get_model instead
+    Uses Meilisearch for text queries (fast, accurate).
+    Falls back to REST API for filter-only queries, batch IDs, favorites, etc.
     """
+    # Use Meilisearch when we have a text query and no REST-only params
+    rest_only_params = ids or favorites is not None or hidden is not None or \
+        primary_file_only is not None or allow_commercial_use or \
+        supports_generation is not None or allow_no_credit is not None or \
+        allow_derivatives is not None or allow_different_licenses is not None
+
+    if query and not rest_only_params:
+        try:
+            meili = _get_meili()
+            offset = (page - 1) * limit if page > 1 else 0
+            result = await meili.search(
+                query=query,
+                types=types,
+                base_model=base_model,
+                tag=tag,
+                username=username,
+                sort=sort,
+                nsfw=nsfw,
+                limit=limit,
+                offset=offset,
+            )
+            return format_meilisearch_results(result)
+        except MeilisearchError as e:
+            logger.warning(f"Meilisearch failed, falling back to REST API: {e}")
+
+    # REST API path — for filter-only queries or Meilisearch fallback
     sanitized_query = _sanitize_query(query)
     params: dict = {
         "query": sanitized_query,

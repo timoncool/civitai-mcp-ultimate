@@ -13,10 +13,12 @@
 
 ## Features
 
+- **Meilisearch-powered search** — fast, accurate text search (Civitai REST API search is broken since May 2025)
 - **Search models** — Checkpoints, LoRAs, ControlNets with 40+ base model filters (SD 1.5 → Flux.2)
 - **Top images with prompts** — sort by reactions, comments, collections. Get full generation params
 - **Download commands** — curl/PowerShell commands with auth, ComfyUI path auto-mapping
 - **NSFW support** — full NSFW access with API key (None/Soft/Mature/X filtering)
+- **Image/video cache** — auto-download previews to `~/.civitai-mcp-cache/`, 24h auto-cleanup
 - **Bilingual output** — English and Russian (`CIVITAI_MCP_LANG=ru`)
 - **Async & fast** — httpx async client, retry with backoff on rate limits
 - **14 tools** covering 100% of the Civitai public REST API v1
@@ -67,7 +69,7 @@ civitai-mcp-ultimate
 
 | Tool | Description |
 |------|-------------|
-| `search_models` | Search with filters: type, base model, tag, creator, sort, period, NSFW |
+| `search_models` | Search via Meilisearch (text) or REST API (filters). Type, base model, tag, creator, sort |
 | `get_model` | Full model details by ID |
 | `get_model_version` | Version details: files, trigger words, download URLs |
 | `get_model_version_by_hash` | Find model by file hash |
@@ -120,6 +122,7 @@ Most Reactions, Most Comments, Most Collected, Newest, Oldest
 | `CIVITAI_API_KEY` | Recommended | — | API key for NSFW access + higher rate limits |
 | `CIVITAI_MCP_LANG` | No | `en` | Output language: `en` or `ru` |
 | `COMFYUI_MODELS_PATH` | No | — | ComfyUI models path for download commands |
+| `MEILISEARCH_KEY` | No | built-in | Meilisearch search-only key (public, has default) |
 
 Get your API key: [Civitai Account Settings](https://civitai.com/user/account)
 
