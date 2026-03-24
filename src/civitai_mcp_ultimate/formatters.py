@@ -127,6 +127,10 @@ def format_image(image: dict[str, Any], include_prompt: bool = True) -> str:
         f"**NSFW**: {image.get('nsfwLevel', image.get('nsfw', '?'))}",
         f"**{L_CREATOR}**: {image.get('username', '?')}",
     ]
+    if image.get("postId"):
+        lines.append(f"**Post ID**: {image['postId']}")
+    if image.get("createdAt"):
+        lines.append(f"**{L_CREATED}**: {str(image['createdAt'])[:10]}")
     # Model version IDs used to generate this image
     mv_ids = image.get("modelVersionIds")
     if mv_ids:
@@ -170,7 +174,7 @@ def format_image(image: dict[str, Any], include_prompt: bool = True) -> str:
                 if r.get("type") in ("lora", "LORA"):
                     lora_lines.append(f"  - {r.get('name', '?')} (weight: {r.get('weight', '?')})")
             if lora_lines:
-                lines.append(f"**LoRAs used**:")
+                lines.append("**LoRAs used**:")
                 lines.extend(lora_lines)
 
     return "\n".join(lines)
@@ -214,20 +218,20 @@ def format_download_info(
         lines.append(f"**URL**: `{url}`")
 
         # curl command — use env var for API key, never expose in output
-        lines.append(f"\n**curl**:")
-        lines.append(f"```bash")
+        lines.append("\n**curl**:")
+        lines.append("```bash")
         lines.append(f'curl -L -H "Authorization: Bearer $CIVITAI_API_KEY" -o "{name}" "{url}"')
-        lines.append(f"```")
+        lines.append("```")
 
         # PowerShell command
-        lines.append(f"\n**PowerShell**:")
-        lines.append(f"```powershell")
+        lines.append("\n**PowerShell**:")
+        lines.append("```powershell")
         lines.append(
             f'Invoke-WebRequest -Uri "{url}" '
             f'-Headers @{{"Authorization"="Bearer $env:CIVITAI_API_KEY"}} '
             f'-OutFile "{name}"'
         )
-        lines.append(f"```")
+        lines.append("```")
 
         # ComfyUI path
         if comfyui_path:
@@ -236,9 +240,9 @@ def format_download_info(
             subfolder = COMFYUI_FOLDER_MAP.get(model_type, "other")
             target = os.path.join(comfyui_path, subfolder, name).replace("\\", "/")
             lines.append(f"\n**ComfyUI path**: `{target}`")
-            lines.append(f"```bash")
+            lines.append("```bash")
             lines.append(f'curl -L -H "Authorization: Bearer $CIVITAI_API_KEY" -o "{target}" "{url}"')
-            lines.append(f"```")
+            lines.append("```")
 
         # wget command
         lines.append("\n**wget**:")

@@ -57,6 +57,9 @@ async def search_models(
     primary_file_only: Optional[bool] = None,
     allow_commercial_use: Optional[list[str]] = None,
     supports_generation: Optional[bool] = None,
+    allow_no_credit: Optional[bool] = None,
+    allow_derivatives: Optional[bool] = None,
+    allow_different_licenses: Optional[bool] = None,
 ) -> str:
     """Search for AI models on Civitai with flexible filters.
 
@@ -66,6 +69,7 @@ async def search_models(
     Sort: Highest Rated, Most Downloaded, Newest.
     Period: AllTime, Year, Month, Week, Day.
     Commercial use filter: None, Image, Rent, RentCivit, Sell.
+    License filters: allow_no_credit, allow_derivatives, allow_different_licenses.
 
     Tips: search by username is most reliable. Use get_model if you know the ID.
     Note: page parameter is ignored when query is specified (Civitai uses cursor-based pagination for text search).
@@ -77,6 +81,7 @@ async def search_models(
     return await _search(
         client, query, types, base_model, tag, username, sort, period, nsfw, limit, page,
         ids, favorites, hidden, primary_file_only, allow_commercial_use, supports_generation,
+        allow_no_credit, allow_derivatives, allow_different_licenses,
     )
 
 
