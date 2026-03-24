@@ -1,0 +1,18 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required: []
+    properties:
+      civitaiApiKey:
+        type: string
+        description: "Civitai API key for NSFW access and higher rate limits. Get it at https://civitai.com/user/account"
+      language:
+        type: string
+        default: "en"
+        description: "Output language: en or ru"
+  commandFunction:
+    |-
+    config => ({ command: 'uvx', args: ['civitai-mcp-ultimate'], env: { CIVITAI_API_KEY: config.civitaiApiKey || '', CIVITAI_MCP_LANG: config.language || 'en' } })
