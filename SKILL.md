@@ -52,6 +52,11 @@ get_model_images(model_id=ID, limit=5)
 ```
 browse_images(model_id=ID, sort="Most Reactions", period="Month", limit=5)
 ```
+**NOTE**: `model_id` auto-resolves to the latest version. To see images from a specific version, use `model_version_id` directly:
+```
+get_model(model_id=ID)  # -> see all versions with IDs
+browse_images(model_version_id=VERSION_ID, sort="Most Reactions", period="AllTime", limit=5)
+```
 
 ### Most popular NSFW image this month with prompt
 ```
@@ -195,7 +200,7 @@ get_top_checkpoints(base_model="SDXL 1.0", period="Month", sort="Most Downloaded
 3. **get_creators**: Civitai endpoint is slow (30s+) and may return 500. Use `search_models(username=...)` instead.
 4. **"Most Reactions" sort cursor bug**: Returns null cursor, preventing pagination beyond page 1.
 5. **License filters** (`allow_no_credit`, etc.): Civitai API may return 400.
-6. **get_model_images vs browse_images(model_id)**: Both hit the same endpoint — no API-level separation between author's examples and community images. `get_model_images` may return HTTP 500 on some models; use `browse_images(model_id=ID)` as a reliable alternative.
+6. **modelId ignored on /images endpoint**: Civitai API ignores `modelId` param — only `modelVersionId` works. Fixed in v0.2.1: `browse_images`, `get_model_images`, and `get_image_generation_data` now auto-resolve `model_id` to `model_version_id` (uses latest version). You can still pass `model_version_id` directly to target a specific version.
 7. **browsingLevel**: Bitmask system (1=PG, 2=PG-13, 4=R, 8=X, 16=XXX). Undocumented but stable.
 8. **content_type/tag/tools/techniques**: All undocumented API params but verified working 2026-03-24.
 9. **get_tags**: No NSFW filter available. Returns generic tags (character, anime, woman...) without model counts. Cannot query "top NSFW tags" — use `browse_images(browsing_level="X,XXX")` and inspect tags on returned images instead.

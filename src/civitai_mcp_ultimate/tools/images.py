@@ -1,5 +1,6 @@
 """Image-related MCP tools — browse, search, get prompts."""
 
+import logging
 from typing import Optional
 
 import httpx
@@ -8,6 +9,24 @@ from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError
 from ..formatters import format_image, format_image_list
 from ..image_cache import download_images
 from ..types import parse_browsing_level
+
+logger = logging.getLogger(__name__)
+
+
+async def _resolve_model_version_ids(client: CivitaiClient, model_id: int) -> list[int]:
+    """Resolve model_id to list of version IDs via API.
+
+    Civitai /images endpoint ignores modelId param — only modelVersionId works.
+    So we fetch the model first to get its version IDs.
+    Returns version IDs ordered newest-first (same as Civitai API).
+    """
+    try:
+        data = await client.get(f"models/{model_id}")
+        versions = data.get("modelVersions", [])
+        return [v["id"] for v in versions if v.get("id")]
+    except Exception as e:
+        logger.warning(f"Failed to resolve version IDs for model {model_id}: {e}")
+        return []
 
 
 async def _format_with_downloads(
@@ -64,9 +83,20 @@ async def browse_images(
     originals_only: true = exclude remixes.
     remixes_only: true = only remixes.
     """
+    # Civitai /images API ignores modelId — only modelVersionId works.
+    # Auto-resolve model_id to version IDs when modelVersionId not provided.
+    resolved_version_id = model_version_id
+    if model_id and not model_version_id:
+        version_ids = await _resolve_model_version_ids(client, model_id)
+        if version_ids:
+            # Use the latest (first) version
+            resolved_version_id = version_ids[0]
+            logger.info(f"Resolved model {model_id} -> version {resolved_version_id}")
+        else:
+            logger.warning(f"Could not resolve model {model_id} to version ID, modelId filter may not work")
+
     params: dict = {
-        "modelId": model_id,
-        "modelVersionId": model_version_id,
+        "modelVersionId": resolved_version_id,
         "postId": post_id,
         "username": username,
         "nsfw": nsfw,

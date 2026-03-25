@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "civitai-mcp-ultimate"
-version = "0.2.0"
+version = "0.2.1"
 description = "Ultimate MCP server for Civitai API — search models, browse top images with prompts, download LoRAs/Checkpoints, analyze trends"
 readme = "README.md"
 license = "MIT"
