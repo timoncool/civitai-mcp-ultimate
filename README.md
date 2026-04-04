@@ -164,6 +164,7 @@ pytest
 | [LavaSR](https://github.com/timoncool/LavaSR_portable) | Портативный ASR на базе Faster-Whisper |
 | [Bulka](https://github.com/timoncool/Bulka) | Браузерный синтезатор live-coded музыки |
 | [mock.dog](https://github.com/timoncool/mock.dog) | AI-генератор мокапов для маркетплейсов |
+| [telegram-api-mcp](https://github.com/timoncool/telegram-api-mcp) | Ultimate Telegram Bot API MCP server — 169 methods, meta-mode, rate limiting |
 
 ## License
 
