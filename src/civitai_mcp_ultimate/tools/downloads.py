@@ -5,7 +5,7 @@ from typing import Optional
 
 import httpx
 
-from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError
+from ..client import CivitaiClient, CivitaiError, CivitaiNotFoundError, CivitaiRateLimitError
 from ..formatters import format_download_info
 from ..history import is_downloaded, record_download
 
@@ -26,6 +26,8 @@ async def get_download_url(
         return "Rate limited. Try again later."
     except httpx.TimeoutException:
         return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
     except httpx.HTTPStatusError as e:
         return f"Civitai API error: HTTP {e.response.status_code}"
 
@@ -75,6 +77,8 @@ async def get_download_info(
         return "Rate limited. Try again later."
     except httpx.TimeoutException:
         return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
     except httpx.HTTPStatusError as e:
         return f"Civitai API error: HTTP {e.response.status_code}"
 

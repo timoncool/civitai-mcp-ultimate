@@ -91,6 +91,9 @@ class BaseModel_(str, Enum):
 class ModelSort(str, Enum):
     HIGHEST_RATED = "Highest Rated"
     MOST_DOWNLOADED = "Most Downloaded"
+    MOST_COLLECTED = "Most Collected"
+    MOST_COMMENTS = "Most Comments"
+    MOST_TIPPED = "Most Tipped"
     NEWEST = "Newest"
 
 

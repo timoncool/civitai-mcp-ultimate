@@ -51,8 +51,13 @@ def _thumbnail_url(original_url: str, width: int = PREVIEW_WIDTH) -> str:
 
     Civitai supports width parameter in URL path:
     .../original=true/name.jpeg -> .../width=512/name.jpeg
+    .../width=1024/name.jpeg -> .../width=512/name.jpeg
     """
-    return re.sub(r"/original=true/", f"/width={width}/", original_url)
+    # Handle both /original=true/ and /width=\d+/ patterns
+    result = re.sub(r"/original=true/", f"/width={width}/", original_url)
+    if result == original_url:
+        result = re.sub(r"/width=\d+/", f"/width={width}/", original_url)
+    return result
 
 
 def _ext_from_url(url: str) -> str:
@@ -61,7 +66,7 @@ def _ext_from_url(url: str) -> str:
     last_part = url.rstrip("/").rsplit("/", 1)[-1].split("?")[0]
     if "." in last_part:
         ext = last_part.rsplit(".", 1)[-1].lower()
-        if ext in ("jpeg", "jpg", "png", "webp", "gif", "mp4"):
+        if ext in ("jpeg", "jpg", "png", "webp", "gif", "mp4", "webm"):
             return ext
     return "jpeg"
 
@@ -82,7 +87,7 @@ async def download_image(image_id: int | str, url: str) -> str | None:
 
     # Videos: download original (no thumbnail available)
     # Images: download 512px thumbnail to save bandwidth
-    is_video = ext in ("mp4",)
+    is_video = ext in ("mp4", "webm")
     download_url = url if is_video else _thumbnail_url(url)
     timeout = 60.0 if is_video else 15.0
 

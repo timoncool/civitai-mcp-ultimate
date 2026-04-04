@@ -69,7 +69,7 @@ class CivitaiClient:
     async def _get_client(self) -> httpx.AsyncClient:
         async with self._lock:
             if self._client is None or self._client.is_closed:
-                headers = {"User-Agent": "civitai-mcp-ultimate/0.2.0"}
+                headers = {"User-Agent": "civitai-mcp-ultimate/0.3.0"}
                 if self.api_key:
                     headers["Authorization"] = f"Bearer {self.api_key}"
                 self._client = httpx.AsyncClient(
@@ -137,7 +137,10 @@ class CivitaiClient:
                     raise CivitaiNotFoundError(f"Not found: {endpoint}")
 
                 response.raise_for_status()
-                return _sanitize_response(response.json())
+                try:
+                    return _sanitize_response(response.json())
+                except ValueError:
+                    raise CivitaiError(f"Invalid JSON response from {endpoint}")
 
             except (httpx.RemoteProtocolError, httpx.ConnectError):
                 if attempt < MAX_RETRIES - 1:
@@ -150,7 +153,7 @@ class CivitaiClient:
                     logger.warning(f"Timeout, retrying (attempt {attempt + 1}/{MAX_RETRIES})")
                     continue
                 raise
-            except (CivitaiNotFoundError, CivitaiRateLimitError):
+            except CivitaiError:
                 raise
             except httpx.HTTPStatusError as e:
                 logger.error(f"HTTP error {e.response.status_code}: {e.response.text[:200]}")

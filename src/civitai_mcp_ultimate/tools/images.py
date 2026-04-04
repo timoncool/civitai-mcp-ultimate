@@ -5,7 +5,7 @@ from typing import Optional
 
 import httpx
 
-from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError
+from ..client import CivitaiClient, CivitaiError, CivitaiNotFoundError, CivitaiRateLimitError
 from ..formatters import format_image, format_image_list
 from ..history import get_used_image_ids, record_images_batch
 from ..image_cache import download_images
@@ -138,6 +138,8 @@ async def browse_images(
         return "Civitai images endpoint not found."
     except httpx.TimeoutException:
         return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
     except httpx.HTTPStatusError as e:
         return f"Civitai API error: HTTP {e.response.status_code}"
     items = data.get("items", [])

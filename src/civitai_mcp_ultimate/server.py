@@ -15,8 +15,15 @@ from typing import Optional
 
 from fastmcp import FastMCP
 
+from fastmcp.tools.tool import ToolAnnotations
+
 from .client import CivitaiClient
 from .types import BaseModel_, ImageSort, ModelSort, ModelType, NsfwLevel, Period
+
+# Tool annotation presets
+READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True)
+WRITE_OP = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=False)
+DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False)
 
 client = CivitaiClient()
 
@@ -57,7 +64,7 @@ mcp = FastMCP(
 # ═══════════════════════════════════════════════════════════════
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"models", "search"})
 async def search_models(
     query: Optional[str] = None,
     types: Optional[list[str]] = None,
@@ -104,7 +111,7 @@ async def search_models(
     )
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"models"})
 async def get_model(model_id: int) -> str:
     """Get detailed info about a specific model by ID.
 
@@ -115,7 +122,7 @@ async def get_model(model_id: int) -> str:
     return await _get(client, model_id)
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"models"})
 async def get_model_version(version_id: int) -> str:
     """Get details about a specific model version by version ID.
 
@@ -126,7 +133,7 @@ async def get_model_version(version_id: int) -> str:
     return await _get(client, version_id)
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"models"})
 async def get_model_version_by_hash(hash: str) -> str:
     """Find a model version by its file hash (SHA256, AutoV2, CRC32, BLAKE3)."""
     from .tools.models import get_model_version_by_hash as _get
@@ -134,7 +141,7 @@ async def get_model_version_by_hash(hash: str) -> str:
     return await _get(client, hash)
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"models", "search"})
 async def get_top_checkpoints(
     base_model: str = "SDXL 1.0",
     period: str = "Month",
@@ -151,7 +158,7 @@ async def get_top_checkpoints(
     return await _get(client, base_model, period, sort, limit)
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"models", "search"})
 async def get_top_loras(
     base_model: str = "SDXL 1.0",
     period: str = "Month",
@@ -174,7 +181,7 @@ async def get_top_loras(
 # ═══════════════════════════════════════════════════════════════
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"images", "search"})
 async def browse_images(
     model_id: Optional[int] = None,
     model_version_id: Optional[int] = None,
@@ -225,7 +232,7 @@ async def browse_images(
     )
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"images", "search"})
 async def get_top_images(
     sort: str = "Most Reactions",
     period: str = "Month",
@@ -265,7 +272,7 @@ async def get_top_images(
     )
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"images"})
 async def get_model_images(
     model_id: int,
     limit: int = 5,
@@ -284,7 +291,7 @@ async def get_model_images(
     return await _get(client, model_id, limit, exclude_used, requester)
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"images"})
 async def get_image_generation_data(
     model_id: int,
     sort: str = "Most Reactions",
@@ -309,7 +316,7 @@ async def get_image_generation_data(
 # ═══════════════════════════════════════════════════════════════
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"creators"})
 async def get_creators(
     query: Optional[str] = None,
     limit: int = 20,
@@ -321,7 +328,7 @@ async def get_creators(
     return await _get(client, query, limit, page)
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"tags"})
 async def get_tags(
     query: Optional[str] = None,
     limit: int = 20,
@@ -338,7 +345,7 @@ async def get_tags(
 # ═══════════════════════════════════════════════════════════════
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"downloads"})
 async def get_download_url(version_id: int) -> str:
     """Get authenticated download URL for a model version."""
     from .tools.downloads import get_download_url as _get
@@ -346,7 +353,7 @@ async def get_download_url(version_id: int) -> str:
     return await _get(client, version_id)
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"downloads"})
 async def get_download_info(
     model_id: int,
     version_id: Optional[int] = None,
@@ -368,7 +375,7 @@ async def get_download_info(
 # ═══════════════════════════════════════════════════════════════
 
 
-@mcp.tool
+@mcp.tool(annotations=READ_ONLY, tags={"history"})
 async def get_history(
     what: str = "all",
     limit: int = 50,
@@ -431,7 +438,7 @@ async def get_history(
     return "\n".join(lines)
 
 
-@mcp.tool
+@mcp.tool(annotations=WRITE_OP, tags={"history"})
 async def mark_as_used(
     image_ids: list[int],
     action: str = "sent",
@@ -455,7 +462,7 @@ async def mark_as_used(
     return f"Marked {len(image_ids)} items as used (action: {action}, requester: {requester or 'unknown'})."
 
 
-@mcp.tool
+@mcp.tool(annotations=DESTRUCTIVE, tags={"history"})
 async def clear_history(what: str = "all") -> str:
     """Clear usage history. Use with caution!
 

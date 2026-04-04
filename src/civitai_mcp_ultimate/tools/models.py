@@ -5,7 +5,7 @@ from typing import Optional
 
 import httpx
 
-from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError, _sanitize_query
+from ..client import CivitaiClient, CivitaiError, CivitaiNotFoundError, CivitaiRateLimitError, _sanitize_query
 from ..formatters import format_file_size, format_model_card, format_model_list
 from ..meilisearch import MeilisearchClient, MeilisearchError, format_meilisearch_results
 
@@ -123,6 +123,8 @@ async def search_models(
         return "Civitai API endpoint not found."
     except httpx.TimeoutException:
         return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
     except httpx.HTTPStatusError as e:
         return f"Civitai API error: HTTP {e.response.status_code}"
 
@@ -152,6 +154,8 @@ async def get_model(client: CivitaiClient, model_id: int) -> str:
         return "Rate limited by Civitai API. Please try again in a few seconds."
     except httpx.TimeoutException:
         return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
     except httpx.HTTPStatusError as e:
         return f"Civitai API error: HTTP {e.response.status_code}"
     return format_model_card(data)
@@ -170,6 +174,8 @@ async def get_model_version(client: CivitaiClient, version_id: int) -> str:
         return "Rate limited by Civitai API. Please try again in a few seconds."
     except httpx.TimeoutException:
         return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
     except httpx.HTTPStatusError as e:
         return f"Civitai API error: HTTP {e.response.status_code}"
     return _format_version(data)
@@ -223,6 +229,8 @@ async def get_model_version_by_hash(client: CivitaiClient, hash: str) -> str:
         return "Rate limited by Civitai API. Please try again in a few seconds."
     except httpx.TimeoutException:
         return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
     except httpx.HTTPStatusError as e:
         return f"Civitai API error: HTTP {e.response.status_code}"
     return _format_version(data)

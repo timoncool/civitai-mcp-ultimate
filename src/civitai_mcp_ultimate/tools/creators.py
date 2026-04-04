@@ -4,7 +4,7 @@ from typing import Optional
 
 import httpx
 
-from ..client import CivitaiClient, CivitaiRateLimitError
+from ..client import CivitaiClient, CivitaiError, CivitaiRateLimitError
 from ..formatters import format_creator, format_tag
 
 
@@ -29,6 +29,8 @@ async def get_creators(
         return "Rate limited by Civitai API. Please try again in a few seconds."
     except httpx.TimeoutException:
         return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
     except httpx.HTTPStatusError as e:
         return f"Civitai API error: HTTP {e.response.status_code}"
     items = data.get("items", [])
@@ -58,6 +60,8 @@ async def get_tags(
         return "Rate limited by Civitai API. Please try again in a few seconds."
     except httpx.TimeoutException:
         return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
     except httpx.HTTPStatusError as e:
         return f"Civitai API error: HTTP {e.response.status_code}"
     items = data.get("items", [])

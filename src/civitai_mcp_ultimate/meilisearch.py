@@ -59,7 +59,7 @@ class MeilisearchClient:
                     headers={
                         "Authorization": f"Bearer {self.api_key}",
                         "Content-Type": "application/json",
-                        "User-Agent": "civitai-mcp-ultimate/0.2.0",
+                        "User-Agent": "civitai-mcp-ultimate/0.3.0",
                     },
                 )
             return self._client
