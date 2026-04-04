@@ -39,6 +39,11 @@ ATTRIBUTES_TO_RETRIEVE = [
 ]
 
 
+def _escape_meili(value: str) -> str:
+    """Escape double quotes in Meilisearch filter values."""
+    return value.replace('\\', '\\\\').replace('"', '\\"')
+
+
 class MeilisearchError(Exception):
     """Meilisearch search error."""
 
@@ -88,16 +93,16 @@ class MeilisearchClient:
         filters: list[str] = []
         if types:
             if len(types) == 1:
-                filters.append(f"type = {types[0]}")
+                filters.append(f'type = "{_escape_meili(types[0])}"')
             else:
-                parts = " OR ".join(f"type = {t}" for t in types)
+                parts = " OR ".join(f'type = "{_escape_meili(t)}"' for t in types)
                 filters.append(f"({parts})")
         if base_model:
-            filters.append(f'version.baseModel = "{base_model}"')
+            filters.append(f'version.baseModel = "{_escape_meili(base_model)}"')
         if tag:
-            filters.append(f'tags.name = "{tag.lower()}"')
+            filters.append(f'tags.name = "{_escape_meili(tag.lower())}"')
         if username:
-            filters.append(f'user.username = "{username}"')
+            filters.append(f'user.username = "{_escape_meili(username)}"')
         if nsfw is False:
             filters.append("nsfwLevel = 1")
 

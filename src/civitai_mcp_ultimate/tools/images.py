@@ -6,7 +6,7 @@ from typing import Optional
 import httpx
 
 from ..client import CivitaiClient, CivitaiError, CivitaiNotFoundError, CivitaiRateLimitError
-from ..formatters import format_image, format_image_list
+from ..formatters import format_image_list
 from ..history import get_used_image_ids, record_images_batch
 from ..image_cache import download_images
 from ..types import parse_browsing_level
@@ -96,7 +96,7 @@ async def browse_images(
             resolved_version_id = version_ids[0]
             logger.info(f"Resolved model {model_id} -> version {resolved_version_id}")
         else:
-            logger.warning(f"Could not resolve model {model_id} to version ID, modelId filter may not work")
+            return f"Could not resolve model {model_id} to any version ID. Check the model ID is correct."
 
     params: dict = {
         "modelVersionId": resolved_version_id,

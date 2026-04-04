@@ -43,6 +43,7 @@ async def search_models(
     allow_no_credit: Optional[bool] = None,
     allow_derivatives: Optional[bool] = None,
     allow_different_licenses: Optional[bool] = None,
+    cursor: Optional[str] = None,
 ) -> str:
     """Search for AI models on Civitai with flexible filters.
 
@@ -88,7 +89,9 @@ async def search_models(
         "limit": min(limit, 100),
     }
     # Civitai API doesn't allow page param with query search — cursor-based only
-    if not sanitized_query:
+    if cursor:
+        params["cursor"] = cursor
+    elif not sanitized_query:
         params["page"] = page
     if types:
         params["types"] = types
@@ -136,7 +139,10 @@ async def search_models(
 
     result = format_model_list(items)
     total = meta.get("totalItems", "?")
-    result += f"\n\n---\n_Page {meta.get('currentPage', page)} | Total: {total}_"
+    page_info = f"Page {meta.get('currentPage', page)}" if meta.get("currentPage") else "Results"
+    result += f"\n\n---\n_{page_info} | Total: {total}_"
+    if meta.get("nextCursor"):
+        result += f"\n_Next cursor: {meta['nextCursor']}_"
     return result
 
 
@@ -234,6 +240,46 @@ async def get_model_version_by_hash(client: CivitaiClient, hash: str) -> str:
     except httpx.HTTPStatusError as e:
         return f"Civitai API error: HTTP {e.response.status_code}"
     return _format_version(data)
+
+
+async def get_model_version_mini(client: CivitaiClient, version_id: int) -> str:
+    """Get lightweight info about a model version — fast check for availability and download.
+
+    Returns: air, base model, file size, hashes, download URLs, generation support.
+    Much faster than get_model_version for quick checks.
+    """
+    try:
+        data = await client.get(f"model-versions/mini/{version_id}")
+    except CivitaiNotFoundError:
+        return f"Model version {version_id} not found"
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
+
+    size = data.get("size")
+    size_str = format_file_size(size / 1024) if size else "?"
+    lines = [
+        f"## {data.get('modelName', '?')} — {data.get('versionName', '?')} (Version ID: {version_id})",
+        f"**Base Model**: {data.get('baseModel', '?')}",
+        f"**File**: {data.get('fileName', '?')} ({size_str}, {data.get('format', '?')})",
+        f"**Can Generate**: {data.get('canGenerate', '?')}",
+        f"**Availability**: {data.get('availability', '?')}",
+    ]
+    if data.get("air"):
+        lines.append(f"**AIR**: {data['air']}")
+    if data.get("hashes"):
+        hashes = data["hashes"]
+        hash_parts = [f"{ht}: {hashes[ht]}" for ht in ["SHA256", "AutoV2"] if hashes.get(ht)]
+        if hash_parts:
+            lines.append(f"**Hashes**: {' | '.join(hash_parts)}")
+    if data.get("publishedAt"):
+        lines.append(f"**Published**: {str(data['publishedAt'])[:10]}")
+    return "\n".join(lines)
 
 
 async def get_top_checkpoints(

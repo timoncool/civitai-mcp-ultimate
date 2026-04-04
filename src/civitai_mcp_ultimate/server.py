@@ -14,14 +14,12 @@ from contextlib import asynccontextmanager
 from typing import Optional
 
 from fastmcp import FastMCP
-
 from fastmcp.tools.tool import ToolAnnotations
 
 from .client import CivitaiClient
-from .types import BaseModel_, ImageSort, ModelSort, ModelType, NsfwLevel, Period
 
 # Tool annotation presets
-READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True)
+READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
 WRITE_OP = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=True, openWorldHint=False)
 DESTRUCTIVE = ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=False)
 
@@ -85,6 +83,7 @@ async def search_models(
     allow_no_credit: Optional[bool] = None,
     allow_derivatives: Optional[bool] = None,
     allow_different_licenses: Optional[bool] = None,
+    cursor: Optional[str] = None,
 ) -> str:
     """Search for AI models on Civitai with flexible filters.
 
@@ -92,11 +91,12 @@ async def search_models(
     Falls back to REST API for filter-only queries, batch IDs, favorites, etc.
 
     Find checkpoints, LoRAs, ControlNets and more.
-    Types: Checkpoint, LORA, LoCon, TextualInversion, Hypernetwork, Controlnet, Poses, VAE, Upscaler, Wildcards, MotionModule, Workflows, Other.
+    Types: Checkpoint, LORA, LoCon, DoRA, TextualInversion, Hypernetwork, Controlnet, Poses, VAE, Upscaler, Wildcards, MotionModule, Workflows, Detection, Other.
     Base models: SD 1.5, SDXL 1.0, Flux.1 D, Flux.2 D, Pony, Illustrious, NoobAI, Hunyuan 1, Kolors, Chroma, ZImageBase, etc.
     Sort: Highest Rated, Most Downloaded, Most Collected, Most Comments, Most Tipped, Newest.
     Period: AllTime, Year, Month, Week, Day (REST API only).
     Commercial use filter: None, Image, Rent, RentCivit, Sell (REST API only).
+    cursor: pagination cursor from previous response (REST API).
 
     Tips: text search works best via Meilisearch. Use get_model if you know the ID.
     Set favorites=true or hidden=true to filter your own models (requires API key, REST API).
@@ -107,7 +107,7 @@ async def search_models(
     return await _search(
         client, query, types, base_model, tag, username, sort, period, nsfw, limit, page,
         ids, favorites, hidden, primary_file_only, allow_commercial_use, supports_generation,
-        allow_no_credit, allow_derivatives, allow_different_licenses,
+        allow_no_credit, allow_derivatives, allow_different_licenses, cursor,
     )
 
 
@@ -139,6 +139,17 @@ async def get_model_version_by_hash(hash: str) -> str:
     from .tools.models import get_model_version_by_hash as _get
 
     return await _get(client, hash)
+
+
+@mcp.tool(annotations=READ_ONLY, tags={"models"})
+async def get_model_version_mini(version_id: int) -> str:
+    """Quick check for a model version — availability, size, hashes, generation support.
+
+    Faster than get_model_version. Use for download/compatibility checks.
+    """
+    from .tools.models import get_model_version_mini as _get
+
+    return await _get(client, version_id)
 
 
 @mcp.tool(annotations=READ_ONLY, tags={"models", "search"})

@@ -21,7 +21,9 @@ class ModelType(str, Enum):
     MOTION_MODULE = "MotionModule"
     VAE = "VAE"
     UPSCALER = "Upscaler"
+    DORA = "DoRA"
     WORKFLOWS = "Workflows"
+    DETECTION = "Detection"
     OTHER = "Other"
 
 
@@ -161,6 +163,7 @@ COMFYUI_FOLDER_MAP: dict[str, str] = {
     "Checkpoint": "checkpoints",
     "LORA": "loras",
     "LoCon": "loras",
+    "DoRA": "loras",
     "TextualInversion": "embeddings",
     "Hypernetwork": "hypernetworks",
     "Controlnet": "controlnet",
