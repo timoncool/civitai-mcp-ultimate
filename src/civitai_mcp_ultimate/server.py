@@ -176,6 +176,29 @@ async def get_top_loras(
     return await _get(client, base_model, period, sort, limit, nsfw)
 
 
+@mcp.tool(annotations=READ_ONLY, tags={"models"})
+async def get_enums() -> str:
+    """Get all valid enum values for Civitai API filters.
+
+    Returns valid values for: ModelType, BaseModel, ActiveBaseModel, BaseModelType, ModelFileType.
+    Use this to discover currently supported model types and base models.
+    """
+    from .tools.models import get_enums as _get
+
+    return await _get(client)
+
+
+@mcp.tool(annotations=READ_ONLY, tags={"account"})
+async def get_current_user() -> str:
+    """Get info about the currently authenticated user (requires CIVITAI_API_KEY).
+
+    Returns: username, tier, membership status. Use to verify API key is valid.
+    """
+    from .tools.models import get_current_user as _get
+
+    return await _get(client)
+
+
 # ═══════════════════════════════════════════════════════════════
 # IMAGE TOOLS
 # ═══════════════════════════════════════════════════════════════

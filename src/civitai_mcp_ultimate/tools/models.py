@@ -278,3 +278,65 @@ async def get_top_loras(
         limit=limit,
         nsfw=nsfw,
     )
+
+
+async def get_enums(client: CivitaiClient) -> str:
+    """Get all valid enum values for Civitai API filters.
+
+    Returns valid values for: ModelType, BaseModel, ActiveBaseModel, BaseModelType, ModelFileType.
+    Use this to discover supported model types and base models for search filters.
+    """
+    try:
+        data = await client.get("enums")
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
+
+    lines = ["## Civitai API Enums\n"]
+    for key in sorted(data.keys()):
+        vals = data[key]
+        if isinstance(vals, list):
+            lines.append(f"### {key} ({len(vals)} values)")
+            lines.append(", ".join(str(v) for v in vals))
+            lines.append("")
+    return "\n".join(lines)
+
+
+async def get_current_user(client: CivitaiClient) -> str:
+    """Get info about the currently authenticated user (requires API key).
+
+    Returns: username, tier, membership status, subscriptions.
+    Use this to verify API key is valid and check account status.
+    """
+    if not client.api_key:
+        return "No API key configured. Set CIVITAI_API_KEY environment variable."
+
+    try:
+        data = await client.get("me")
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            return "API key is invalid or expired. Check CIVITAI_API_KEY."
+        return f"Civitai API error: HTTP {e.response.status_code}"
+
+    lines = [
+        "## Current User\n",
+        f"**Username**: {data.get('username', '?')}",
+        f"**ID**: {data.get('id', '?')}",
+        f"**Tier**: {data.get('tier', '?')}",
+        f"**Status**: {data.get('status', '?')}",
+        f"**Member**: {data.get('isMember', '?')}",
+    ]
+    if data.get("subscriptions"):
+        lines.append(f"**Subscriptions**: {data['subscriptions']}")
+    return "\n".join(lines)
