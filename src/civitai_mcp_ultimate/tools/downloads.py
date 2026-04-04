@@ -7,6 +7,7 @@ import httpx
 
 from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError
 from ..formatters import format_download_info
+from ..history import is_downloaded, record_download
 
 
 async def get_download_url(
@@ -32,7 +33,19 @@ async def get_download_url(
     if not files:
         return f"No files found for version {version_id}"
 
+    # Record in history
+    already = is_downloaded(version_id)
+    record_download(
+        version_id=version_id,
+        model_id=data.get("modelId"),
+        model_name=data.get("model", {}).get("name"),
+        filename=files[0].get("name") if files else None,
+    )
+
     lines = []
+    if already:
+        lines.append(f"**⚠ Already downloaded before** (version {version_id})")
+        lines.append("")
     for f in files:
         url = f.get("downloadUrl", "")
         lines.append(f"**{f.get('name', '?')}**: `{url}`")
@@ -84,8 +97,25 @@ async def get_download_info(
 
     comfyui = comfyui_path or os.getenv("COMFYUI_MODELS_PATH", "")
 
-    return format_download_info(
+    # Record in history
+    vid = version.get("id", version_id)
+    already = is_downloaded(vid) if vid else False
+    if vid:
+        files = version.get("files", [])
+        record_download(
+            version_id=vid,
+            model_id=model_id,
+            model_name=model_data.get("name"),
+            filename=files[0].get("name") if files else None,
+        )
+
+    result = format_download_info(
         model=model_data,
         version=version,
         comfyui_path=comfyui,
     )
+
+    if already:
+        result = f"**⚠ Already downloaded before** (version {vid})\n\n" + result
+
+    return result

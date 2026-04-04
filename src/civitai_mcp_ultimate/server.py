@@ -37,7 +37,17 @@ async def lifespan(server):
 
 mcp = FastMCP(
     name="civitai-mcp-ultimate",
-    instructions="Ultimate MCP server for Civitai — search models, browse top images with prompts, download LoRAs/Checkpoints, analyze trends.",
+    instructions=(
+        "Ultimate MCP server for Civitai — search models, browse top images/videos with prompts, "
+        "download LoRAs/Checkpoints, analyze trends.\n\n"
+        "IMPORTANT — Usage History:\n"
+        "- All browsed images/videos and downloaded models are automatically recorded in history.\n"
+        "- When fetching content for publishing (Pikabu, Telegram, etc.), ALWAYS set exclude_used=true "
+        "and requester='pikabu'/'telegram'/etc. to avoid duplicate posts.\n"
+        "- After successfully publishing content, call mark_as_used with the image IDs and requester.\n"
+        "- Use get_history to check what was already used before starting a publishing workflow.\n"
+        "- History is persistent across sessions (stored in data/history.json)."
+    ),
     lifespan=lifespan,
 )
 
@@ -185,6 +195,8 @@ async def browse_images(
     made_on_site: Optional[bool] = None,
     originals_only: Optional[bool] = None,
     remixes_only: Optional[bool] = None,
+    exclude_used: Optional[bool] = None,
+    requester: Optional[str] = None,
 ) -> str:
     """Browse AI-generated images/videos on Civitai.
 
@@ -199,7 +211,9 @@ async def browse_images(
     has_meta: true = only with generation metadata.
     made_on_site: true = only generated on Civitai.
     originals_only/remixes_only: filter originals vs remixes.
-    Previews are cached locally (~/.civitai-mcp-cache/) for viewing via Read tool.
+    exclude_used: true = skip images/videos already in history (avoid duplicates).
+    requester: who is requesting (e.g. "pikabu", "telegram", "scheduled:daily-post"). Always specify when fetching content for another MCP tool.
+    Previews are cached locally for viewing via Read tool.
     """
     from .tools.images import browse_images as _browse
 
@@ -207,6 +221,7 @@ async def browse_images(
         client, model_id, model_version_id, post_id, username, nsfw, sort, period, limit, page,
         content_type, browsing_level, tag, base_model, tools, techniques,
         has_meta, made_on_site, originals_only, remixes_only,
+        exclude_used, requester,
     )
 
 
@@ -226,6 +241,8 @@ async def get_top_images(
     made_on_site: Optional[bool] = None,
     originals_only: Optional[bool] = None,
     remixes_only: Optional[bool] = None,
+    exclude_used: Optional[bool] = None,
+    requester: Optional[str] = None,
 ) -> str:
     """Get top images/videos from Civitai — best for finding great prompts.
 
@@ -235,6 +252,8 @@ async def get_top_images(
     browsing_level: "PG", "PG-13", "R", "X", "XXX" (comma-separated).
     tag/base_model/tools/techniques: additional filters.
     has_meta/made_on_site/originals_only/remixes_only: boolean modifiers.
+    exclude_used: true = skip images/videos already in history (avoid duplicate posts).
+    requester: who is requesting (e.g. "pikabu", "telegram", "scheduled:daily-post"). Always specify for publishing workflows.
     Previews cached locally for Read tool.
     """
     from .tools.images import get_top_images as _get
@@ -242,20 +261,27 @@ async def get_top_images(
     return await _get(
         client, sort, period, nsfw, limit, content_type, browsing_level,
         tag, base_model, tools, techniques, has_meta, made_on_site,
-        originals_only, remixes_only,
+        originals_only, remixes_only, exclude_used, requester,
     )
 
 
 @mcp.tool
-async def get_model_images(model_id: int, limit: int = 5) -> str:
+async def get_model_images(
+    model_id: int,
+    limit: int = 5,
+    exclude_used: Optional[bool] = None,
+    requester: Optional[str] = None,
+) -> str:
     """Get example images generated with a specific model.
 
     Returns images with full generation params: prompt, negative prompt,
     steps, CFG, sampler, seed, LoRAs used. Learn how to use a model well.
+    exclude_used: true = skip already-used images.
+    requester: who is requesting (e.g. "pikabu", "telegram").
     """
     from .tools.images import get_model_images as _get
 
-    return await _get(client, model_id, limit)
+    return await _get(client, model_id, limit, exclude_used, requester)
 
 
 @mcp.tool
@@ -263,15 +289,19 @@ async def get_image_generation_data(
     model_id: int,
     sort: str = "Most Reactions",
     limit: int = 3,
+    exclude_used: Optional[bool] = None,
+    requester: Optional[str] = None,
 ) -> str:
     """Get full generation parameters from top images of a model.
 
     Focused on extracting the best prompts, settings, and LoRA combinations.
     Only returns images that have generation metadata.
+    exclude_used: true = skip already-used images.
+    requester: who is requesting (e.g. "pikabu", "telegram").
     """
     from .tools.images import get_image_generation_data as _get
 
-    return await _get(client, model_id, sort, limit)
+    return await _get(client, model_id, sort, limit, exclude_used, requester)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -331,6 +361,109 @@ async def get_download_info(
     from .tools.downloads import get_download_info as _get
 
     return await _get(client, model_id, version_id, comfyui_path)
+
+
+# ═══════════════════════════════════════════════════════════════
+# HISTORY TOOLS
+# ═══════════════════════════════════════════════════════════════
+
+
+@mcp.tool
+async def get_history(
+    what: str = "all",
+    limit: int = 50,
+) -> str:
+    """View history of downloaded models and used images/videos.
+
+    what: "all" (summary), "downloads" (downloaded models), "images" (used images/videos).
+    Use this to check what was already used before fetching new content.
+    """
+    from .history import get_downloaded, get_stats, get_used_images
+
+    if what == "downloads":
+        items = get_downloaded()[:limit]
+        if not items:
+            return "No downloads in history."
+        lines = ["## Download History\n"]
+        for d in items:
+            lines.append(
+                f"- **v{d['version_id']}** — {d.get('model_name', '?')} "
+                f"(`{d.get('filename', '?')}`) — {d.get('iso', '?')}"
+            )
+        return "\n".join(lines)
+
+    if what == "images":
+        items = get_used_images()[:limit]
+        if not items:
+            return "No images/videos in history."
+        lines = ["## Image/Video History\n"]
+        for img in items:
+            actions = img.get("actions", [])
+            last_action = actions[-1] if actions else {}
+            lines.append(
+                f"- **Image {img['image_id']}** — "
+                f"{last_action.get('action', '?')} — {last_action.get('iso', '?')}"
+                + (f" — {last_action.get('context', '')}" if last_action.get('context') else "")
+            )
+        return "\n".join(lines)
+
+    # Summary
+    stats = get_stats()
+    downloads = get_downloaded()[:5]
+    images = get_used_images()[:5]
+
+    lines = [
+        "## History Summary\n",
+        f"**Downloads**: {stats['total_downloads']} models",
+        f"**Images/Videos**: {stats['total_images']} items\n",
+    ]
+    if downloads:
+        lines.append("### Recent Downloads")
+        for d in downloads:
+            lines.append(f"- v{d['version_id']} — {d.get('model_name', '?')} — {d.get('iso', '?')}")
+    if images:
+        lines.append("\n### Recent Images/Videos")
+        for img in images:
+            actions = img.get("actions", [])
+            last = actions[-1] if actions else {}
+            lines.append(f"- Image {img['image_id']} — {last.get('action', '?')} — {last.get('iso', '?')}")
+
+    return "\n".join(lines)
+
+
+@mcp.tool
+async def mark_as_used(
+    image_ids: list[int],
+    action: str = "sent",
+    requester: Optional[str] = None,
+    context: Optional[str] = None,
+) -> str:
+    """Mark images/videos as used (e.g. after sending to Pikabu, Telegram, etc.).
+
+    Call this AFTER successfully publishing content to another platform.
+    image_ids: list of Civitai image IDs that were used.
+    action: what was done — "sent_to_pikabu", "sent_to_telegram", "posted", etc.
+    requester: which MCP/tool used this (e.g. "pikabu", "telegram").
+    context: optional note (e.g. "posted to community Stable Diffusion").
+    """
+    from .history import record_image
+
+    for img_id in image_ids:
+        full_action = f"{action}:{requester}" if requester else action
+        record_image(img_id, action=full_action, context=context)
+
+    return f"Marked {len(image_ids)} items as used (action: {action}, requester: {requester or 'unknown'})."
+
+
+@mcp.tool
+async def clear_history(what: str = "all") -> str:
+    """Clear usage history. Use with caution!
+
+    what: "all" (everything), "downloads" (only downloads), "images" (only images/videos).
+    """
+    from .history import clear_history as _clear
+
+    return _clear(what)
 
 
 # ═══════════════════════════════════════════════════════════════

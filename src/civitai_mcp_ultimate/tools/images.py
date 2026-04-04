@@ -7,6 +7,7 @@ import httpx
 
 from ..client import CivitaiClient, CivitaiNotFoundError, CivitaiRateLimitError
 from ..formatters import format_image, format_image_list
+from ..history import get_used_image_ids, record_images_batch
 from ..image_cache import download_images
 from ..types import parse_browsing_level
 
@@ -67,6 +68,8 @@ async def browse_images(
     made_on_site: Optional[bool] = None,
     originals_only: Optional[bool] = None,
     remixes_only: Optional[bool] = None,
+    exclude_used: Optional[bool] = None,
+    requester: Optional[str] = None,
 ) -> str:
     """Browse AI-generated images/videos on Civitai.
 
@@ -142,7 +145,26 @@ async def browse_images(
         ct_label = content_type or "content"
         return f"No {ct_label} found with these filters."
 
+    # Filter out already-used images/videos if requested
+    skipped = 0
+    if exclude_used:
+        used_ids = get_used_image_ids()
+        original_count = len(items)
+        items = [img for img in items if img.get("id") not in used_ids]
+        skipped = original_count - len(items)
+        if not items:
+            return f"All {original_count} results were already used. Try different filters or set exclude_used=false."
+
+    # Record browsed images/videos in history
+    image_ids = [img["id"] for img in items if img.get("id")]
+    action = f"browsed_for:{requester}" if requester else "browsed"
+    record_images_batch(image_ids, action=action)
+
     result = await _format_with_downloads(items, include_prompts=True)
+
+    if skipped:
+        result = f"**Filtered out {skipped} already-used items.**\n\n" + result
+
     # Surface cursor for pagination
     meta = data.get("metadata", {})
     if meta.get("nextCursor"):
@@ -166,6 +188,8 @@ async def get_top_images(
     made_on_site: Optional[bool] = None,
     originals_only: Optional[bool] = None,
     remixes_only: Optional[bool] = None,
+    exclude_used: Optional[bool] = None,
+    requester: Optional[str] = None,
 ) -> str:
     """Get top images/videos from Civitai — best for finding great prompts.
 
@@ -173,11 +197,10 @@ async def get_top_images(
     Period: Day, Week, Month, Year, AllTime.
     content_type: "image" or "video".
     browsing_level: "PG", "PG-13", "R", "X", "XXX" (comma-separated).
-    tag: filter by tag (e.g. "anime", "animal").
-    base_model: filter by base model (e.g. "Flux.1 D").
-    tools: filter by tool (e.g. "ComfyUI").
-    techniques: filter by technique (e.g. "txt2img").
+    tag/base_model/tools/techniques: additional filters.
     has_meta/made_on_site/originals_only/remixes_only: boolean modifiers.
+    exclude_used: true = skip images/videos already in history.
+    requester: who requested this (e.g. "pikabu", "telegram", "scheduled:daily-post").
     """
     return await browse_images(
         client,
@@ -195,6 +218,8 @@ async def get_top_images(
         made_on_site=made_on_site,
         originals_only=originals_only,
         remixes_only=remixes_only,
+        exclude_used=exclude_used,
+        requester=requester,
     )
 
 
@@ -202,14 +227,22 @@ async def get_model_images(
     client: CivitaiClient,
     model_id: int,
     limit: int = 5,
+    exclude_used: Optional[bool] = None,
+    requester: Optional[str] = None,
 ) -> str:
-    """Get example images generated with a specific model."""
+    """Get example images generated with a specific model.
+
+    exclude_used: true = skip images/videos already in history.
+    requester: who requested this (e.g. "pikabu", "telegram").
+    """
     return await browse_images(
         client,
         model_id=model_id,
         sort="Most Reactions",
         period="AllTime",
         limit=limit,
+        exclude_used=exclude_used,
+        requester=requester,
     )
 
 
@@ -218,8 +251,14 @@ async def get_image_generation_data(
     model_id: int,
     sort: str = "Most Reactions",
     limit: int = 3,
+    exclude_used: Optional[bool] = None,
+    requester: Optional[str] = None,
 ) -> str:
-    """Get full generation parameters from top images of a model."""
+    """Get full generation parameters from top images of a model.
+
+    exclude_used: true = skip images/videos already in history.
+    requester: who requested this (e.g. "pikabu", "telegram").
+    """
     return await browse_images(
         client,
         model_id=model_id,
@@ -227,4 +266,6 @@ async def get_image_generation_data(
         period="AllTime",
         limit=limit,
         has_meta=True,
+        exclude_used=exclude_used,
+        requester=requester,
     )
