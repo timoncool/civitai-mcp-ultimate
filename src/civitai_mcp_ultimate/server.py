@@ -17,6 +17,11 @@ from fastmcp import FastMCP
 from fastmcp.tools.tool import ToolAnnotations
 
 from .client import CivitaiClient
+from .history import HISTORY_DIR
+from .trail import Trail
+
+# Singleton TRAIL instance
+_trail = Trail(HISTORY_DIR, server="civitai-mcp")
 
 # Tool annotation presets
 READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True)
@@ -409,102 +414,127 @@ async def get_download_info(
 # ═══════════════════════════════════════════════════════════════
 
 
-@mcp.tool(annotations=READ_ONLY, tags={"history"})
-async def get_history(
-    what: str = "all",
-    limit: int = 50,
-) -> str:
-    """View history of downloaded models and used images/videos.
-
-    what: "all" (summary), "downloads" (downloaded models), "images" (used images/videos).
-    Use this to check what was already used before fetching new content.
-    """
-    from .history import get_downloaded, get_stats, get_used_images
-
-    if what == "downloads":
-        items = get_downloaded()[:limit]
-        if not items:
-            return "No downloads in history."
-        lines = ["## Download History\n"]
-        for d in items:
-            lines.append(
-                f"- **v{d['version_id']}** — {d.get('model_name', '?')} "
-                f"(`{d.get('filename', '?')}`) — {d.get('iso', '?')}"
-            )
-        return "\n".join(lines)
-
-    if what == "images":
-        items = get_used_images()[:limit]
-        if not items:
-            return "No images/videos in history."
-        lines = ["## Image/Video History\n"]
-        for img in items:
-            actions = img.get("actions", [])
-            last_action = actions[-1] if actions else {}
-            lines.append(
-                f"- **Image {img['image_id']}** — "
-                f"{last_action.get('action', '?')} — {last_action.get('iso', '?')}"
-                + (f" — {last_action.get('context', '')}" if last_action.get('context') else "")
-            )
-        return "\n".join(lines)
-
-    # Summary
-    stats = get_stats()
-    downloads = get_downloaded()[:5]
-    images = get_used_images()[:5]
-
-    lines = [
-        "## History Summary\n",
-        f"**Downloads**: {stats['total_downloads']} models",
-        f"**Images/Videos**: {stats['total_images']} items\n",
-    ]
-    if downloads:
-        lines.append("### Recent Downloads")
-        for d in downloads:
-            lines.append(f"- v{d['version_id']} — {d.get('model_name', '?')} — {d.get('iso', '?')}")
-    if images:
-        lines.append("\n### Recent Images/Videos")
-        for img in images:
-            actions = img.get("actions", [])
-            last = actions[-1] if actions else {}
-            lines.append(f"- Image {img['image_id']} — {last.get('action', '?')} — {last.get('iso', '?')}")
-
-    return "\n".join(lines)
+# ═══════════════════════════════════════════════════════════════
+# TRAIL — Tracking Records Across Isolated Logs
+# https://github.com/timoncool/trail-spec
+# ═══════════════════════════════════════════════════════════════
 
 
-@mcp.tool(annotations=WRITE_OP, tags={"history"})
+@mcp.tool(annotations=WRITE_OP, tags={"trail"})
 async def mark_as_used(
     image_ids: list[int],
-    action: str = "sent",
+    action: str = "posted",
     requester: Optional[str] = None,
     context: Optional[str] = None,
+    trace_id: Optional[str] = None,
 ) -> str:
     """Mark images/videos as used (e.g. after sending to Pikabu, Telegram, etc.).
 
     Call this AFTER successfully publishing content to another platform.
     image_ids: list of Civitai image IDs that were used.
-    action: what was done — "sent_to_pikabu", "sent_to_telegram", "posted", etc.
-    requester: which MCP/tool used this (e.g. "pikabu", "telegram").
+    action: TRAIL action — "posted", "selected", "skipped", etc.
+    requester: which workflow used this (e.g. "prompthub-daily", "txt2vid-daily").
     context: optional note (e.g. "posted to community Stable Diffusion").
+    trace_id: optional TRAIL trace ID for pipeline correlation.
     """
-    from .history import record_image
-
     for img_id in image_ids:
-        full_action = f"{action}:{requester}" if requester else action
-        record_image(img_id, action=full_action, context=context)
+        await _trail.append(
+            content_id=f"civitai:image:{img_id}",
+            action=action,
+            requester=requester or "unknown",
+            details={"context": context} if context else None,
+            trace_id=trace_id,
+        )
 
-    return f"Marked {len(image_ids)} items as used (action: {action}, requester: {requester or 'unknown'})."
+    return f"Marked {len(image_ids)} images (action: {action}, req: {requester or 'unknown'})."
 
 
-@mcp.tool(annotations=DESTRUCTIVE, tags={"history"})
-async def clear_history(what: str = "all") -> str:
-    """Clear usage history. Use with caution!
+@mcp.tool(annotations=READ_ONLY, tags={"trail"})
+async def get_trail(
+    content_id: Optional[str] = None,
+    action: Optional[str | list[str]] = None,
+    requester: Optional[str] = None,
+    trace_id: Optional[str] = None,
+    since: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> str:
+    """Query the TRAIL content log. Use to check what content was fetched, selected, posted, or skipped.
 
-    what: "all" (everything), "downloads" (only downloads), "images" (only images/videos).
+    content_id: filter by content ID (exact or prefix like "civitai:image:").
+    action: filter by action(s) — "fetched", "selected", "posted", "failed", "skipped". String or list.
+    requester: filter by workflow/task ID.
+    trace_id: filter by pipeline trace ID.
+    since: ISO 8601 timestamp — only entries after this time.
+    limit: max entries, newest first (0 = all).
+    offset: entries to skip for pagination.
     """
-    from .history import clear_history as _clear
+    entries, total = await _trail.query(
+        content_id=content_id, action=action, requester=requester,
+        trace_id=trace_id, since=since, limit=limit, offset=offset,
+    )
+    if not entries:
+        return "No trail entries found."
+    lines = [f"## TRAIL Log ({len(entries)}/{total} entries)\n"]
+    for e in entries:
+        d = e.get("details", {})
+        detail_str = ""
+        if d:
+            parts = [f"{k}={v}" for k, v in d.items() if not isinstance(v, dict)]
+            if parts:
+                detail_str = f" — {', '.join(parts)}"
+        lines.append(f"- [{e['timestamp']}] **{e['action']}** `{e['content_id']}` (req: {e['requester']}){detail_str}")
+    return "\n".join(lines)
 
-    return _clear(what)
+
+@mcp.tool(annotations=WRITE_OP, tags={"trail"})
+async def mark_trail(
+    content_id: str,
+    action: str,
+    requester: str,
+    details: Optional[dict] = None,
+    trace_id: Optional[str] = None,
+    tags: Optional[list[str]] = None,
+) -> str:
+    """Write an entry to the TRAIL content log.
+
+    content_id: content ID in format source:type:id (e.g. "civitai:image:12345").
+    action: what happened — fetched, selected, posted, failed, skipped.
+    requester: workflow/task ID (e.g. "prompthub-daily").
+    details: optional platform-specific data.
+    trace_id: optional pipeline trace ID.
+    tags: optional labels for filtering.
+    """
+    entry = await _trail.append(
+        content_id=content_id, action=action, requester=requester,
+        details=details, trace_id=trace_id, tags=tags,
+    )
+    return f"Trail entry recorded: {action} {content_id} (req: {requester})"
+
+
+@mcp.tool(annotations=READ_ONLY, tags={"trail"})
+async def get_trail_stats(
+    requester: Optional[str] = None,
+    since: Optional[str] = None,
+) -> str:
+    """Get summary statistics from the TRAIL content log.
+
+    requester: filter by workflow/task ID.
+    since: ISO 8601 timestamp — only count entries after this time.
+    """
+    stats = await _trail.stats(requester=requester, since=since)
+    lines = [
+        "## TRAIL Statistics\n",
+        f"**Total entries:** {stats['total_entries']}",
+        f"**Unique content IDs:** {stats['unique_content_ids']}",
+        f"**First entry:** {stats['first_entry'] or 'N/A'}",
+        f"**Last entry:** {stats['last_entry'] or 'N/A'}",
+    ]
+    if stats['by_action']:
+        lines.append("\n**By action:**")
+        for act, count in sorted(stats['by_action'].items()):
+            lines.append(f"- {act}: {count}")
+    return "\n".join(lines)
 
 
 # ═══════════════════════════════════════════════════════════════
