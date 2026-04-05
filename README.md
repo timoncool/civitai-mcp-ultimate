@@ -4,6 +4,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![MCP](https://img.shields.io/badge/MCP-compatible-purple.svg)](https://modelcontextprotocol.io/)
+[![TRAIL](https://img.shields.io/badge/TRAIL-v2.1-6366f1.svg)](https://github.com/timoncool/trail-spec)
 
 **The most complete MCP server for [Civitai](https://civitai.com) API.** Search models, browse top images with prompts, download LoRAs/Checkpoints, analyze trends — all from your AI assistant.
 
@@ -165,6 +166,17 @@ pytest
 | [Bulka](https://github.com/timoncool/Bulka) | Браузерный синтезатор live-coded музыки |
 | [mock.dog](https://github.com/timoncool/mock.dog) | AI-генератор мокапов для маркетплейсов |
 | [telegram-api-mcp](https://github.com/timoncool/telegram-api-mcp) | Ultimate Telegram Bot API MCP server — 169 methods, meta-mode, rate limiting |
+| [trail-spec](https://github.com/timoncool/trail-spec) | TRAIL — протокол кросс-MCP трекинга контента |
+
+## Star History
+
+<a href="https://star-history.com/#timoncool/civitai-mcp-ultimate&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=timoncool/civitai-mcp-ultimate&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=timoncool/civitai-mcp-ultimate&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=timoncool/civitai-mcp-ultimate&type=Date" />
+ </picture>
+</a>
 
 ## License
 
