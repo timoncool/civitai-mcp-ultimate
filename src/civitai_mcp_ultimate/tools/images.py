@@ -41,8 +41,14 @@ async def _format_with_downloads(
     cached = await download_images(images)
     if cached:
         result += "\n\n---\n**Cached previews** (use Read tool to view):\n"
-        for img_id, path in cached.items():
-            result += f"- Image {img_id}: `{path}`\n"
+        for img_id, path_or_tuple in cached.items():
+            if isinstance(path_or_tuple, tuple):
+                video_path, thumb_path = path_or_tuple
+                result += f"- Video {img_id}: `{video_path}`\n"
+                if thumb_path:
+                    result += f"  Thumbnail: `{thumb_path}` ← Read this to preview\n"
+            else:
+                result += f"- Image {img_id}: `{path_or_tuple}`\n"
 
     return result
 
