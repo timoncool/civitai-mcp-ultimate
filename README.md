@@ -1,12 +1,17 @@
+<div align="center">
+
 # civitai-mcp-ultimate
 
-[![PyPI](https://img.shields.io/pypi/v/civitai-mcp-ultimate)](https://pypi.org/project/civitai-mcp-ultimate/)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![MCP](https://img.shields.io/badge/MCP-compatible-purple.svg)](https://modelcontextprotocol.io/)
-[![TRAIL](https://img.shields.io/badge/TRAIL-v2.1-6366f1.svg)](https://github.com/timoncool/trail-spec)
+**The most complete MCP server for [Civitai](https://civitai.com) API — search models, browse images with prompts, download LoRAs/Checkpoints, analyze trends.**
 
-**The most complete MCP server for [Civitai](https://civitai.com) API.** Search models, browse top images with prompts, download LoRAs/Checkpoints, analyze trends — all from your AI assistant.
+[![Stars](https://img.shields.io/github/stars/timoncool/civitai-mcp-ultimate?style=flat-square)](https://github.com/timoncool/civitai-mcp-ultimate/stargazers)
+[![PyPI](https://img.shields.io/pypi/v/civitai-mcp-ultimate?style=flat-square)](https://pypi.org/project/civitai-mcp-ultimate/)
+[![License](https://img.shields.io/github/license/timoncool/civitai-mcp-ultimate?style=flat-square)](LICENSE)
+[![TRAIL](https://img.shields.io/badge/TRAIL-v2.1-6366f1?style=flat-square)](https://github.com/timoncool/trail-spec)
+
+</div>
+
+All from your AI assistant. 14 tools covering 100% of the Civitai public REST API v1.
 
 > All API parameters verified against real Civitai API on 2026-03-24. No guessing, no copying from broken implementations.
 
@@ -156,17 +161,16 @@ pytest
 
 **Nerual Dreming** ([t.me/nerual_dreming](https://t.me/nerual_dreming)) — [neuro-cartel.com](https://neuro-cartel.com) | основатель [ArtGeneration.me](https://artgeneration.me)
 
-## Другие open-source проекты
+## Other Projects by [@timoncool](https://github.com/timoncool)
 
-| Проект | Описание |
-|--------|----------|
-| [Foundation Music Lab](https://github.com/timoncool/Foundation-Music-Lab) | Генерация музыки + таймлайн-редактор |
-| [VibeVoice ASR](https://github.com/timoncool/VibeVoice_ASR_portable_ru) | Распознавание речи (ASR) |
-| [LavaSR](https://github.com/timoncool/LavaSR_portable) | Портативный ASR на базе Faster-Whisper |
-| [Bulka](https://github.com/timoncool/Bulka) | Браузерный синтезатор live-coded музыки |
-| [mock.dog](https://github.com/timoncool/mock.dog) | AI-генератор мокапов для маркетплейсов |
-| [telegram-api-mcp](https://github.com/timoncool/telegram-api-mcp) | Ultimate Telegram Bot API MCP server — 169 methods, meta-mode, rate limiting |
-| [trail-spec](https://github.com/timoncool/trail-spec) | TRAIL — протокол кросс-MCP трекинга контента |
+| Project | Description |
+|---------|-------------|
+| [telegram-api-mcp](https://github.com/timoncool/telegram-api-mcp) | Full Telegram Bot API as MCP server |
+| [trail-spec](https://github.com/timoncool/trail-spec) | TRAIL — cross-MCP content tracking protocol |
+| [ACE-Step Studio](https://github.com/timoncool/ACE-Step-Studio) | AI music studio — songs, vocals, covers, videos |
+| [VideoSOS](https://github.com/timoncool/videosos) | AI video production in the browser |
+| [Bulka](https://github.com/timoncool/Bulka) | Live-coding music platform |
+| [GitLife](https://github.com/timoncool/gitlife) | Your life in weeks — interactive calendar |
 
 ## Support the Author
 
@@ -181,44 +185,14 @@ I build open-source software and do AI research. Most of what I create is free a
 
 ## Star History
 
-<a href="https://star-history.com/#timoncool/civitai-mcp-ultimate&Date">
+<a href="https://www.star-history.com/?repos=timoncool%2Fcivitai-mcp-ultimate&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=timoncool/civitai-mcp-ultimate&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=timoncool/civitai-mcp-ultimate&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=timoncool/civitai-mcp-ultimate&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=timoncool/civitai-mcp-ultimate&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=timoncool/civitai-mcp-ultimate&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=timoncool/civitai-mcp-ultimate&type=date&legend=top-left" />
  </picture>
 </a>
 
 ## License
 
 MIT
-
----
-
-> **Если проект полезен — поставьте звездочку!**
-
----
-
-# README.ru.md
-
-## civitai-mcp-ultimate
-
-**Самый полный MCP сервер для [Civitai](https://civitai.com) API.** Ищите модели, просматривайте топовые картинки с промптами, скачивайте LoRA/Checkpoints, анализируйте тренды — прямо из AI-ассистента.
-
-### Быстрый старт
-
-```bash
-claude mcp add civitai -- uvx civitai-mcp-ultimate
-export CIVITAI_API_KEY=ваш_ключ
-export CIVITAI_MCP_LANG=ru
-```
-
-### Примеры использования
-
-```
-> Найди топовые Flux LoRA за месяц
-> Покажи лучшие SDXL чекпоинты
-> Дай промпты для модели 12345
-> Скачай эту LoRA в мой ComfyUI
-> Найди NSFW LoRA для Illustrious по реакциям
-```
