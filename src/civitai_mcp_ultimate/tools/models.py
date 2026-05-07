@@ -372,7 +372,12 @@ async def get_current_user(client: CivitaiClient) -> str:
         return f"Civitai API error: {e}"
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 401:
-            return "API key is invalid or expired. Check CIVITAI_API_KEY."
+            return (
+                "401 Unauthorized from /api/v1/me. "
+                "Note: this endpoint requires a Civitai *session token* (web login), not an API key. "
+                "The API key in CIVITAI_API_KEY works for model downloads but not user identity lookup. "
+                "To verify your API key is valid, try get_model() or search_models() instead."
+            )
         return f"Civitai API error: HTTP {e.response.status_code}"
 
     lines = [
@@ -385,4 +390,84 @@ async def get_current_user(client: CivitaiClient) -> str:
     ]
     if data.get("subscriptions"):
         lines.append(f"**Subscriptions**: {data['subscriptions']}")
+    return "\n".join(lines)
+
+
+async def check_permissions(
+    client: CivitaiClient,
+    version_ids: list[int],
+) -> str:
+    """Check whether model versions are accessible for generation/download.
+
+    Returns True/False per version ID — use before downloading to detect early-access gates.
+    True = accessible, False = gated (requires membership or early-access purchase).
+    """
+    params: dict = {
+        "entityIds": ",".join(str(v) for v in version_ids),
+        "entityType": "ModelVersion",
+        "permission": "Generate",
+    }
+    try:
+        data = await client.get("permissions/check", params)
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
+
+    if not data:
+        return "No results returned."
+
+    lines = ["## Permission Check\n"]
+    for vid_str, allowed in data.items():
+        status = "✓ Accessible" if allowed else "✗ Gated (early access / membership required)"
+        lines.append(f"- Version `{vid_str}`: {status}")
+    return "\n".join(lines)
+
+
+async def get_model_versions_by_hashes(client: CivitaiClient, hashes: list[str]) -> str:
+    """Bulk-look up model versions by SHA256 file hashes (up to 100).
+
+    Useful for identifying which locally installed model files exist on Civitai.
+    Pass SHA256 hashes from your model files — unmatched hashes are silently omitted.
+    """
+    if not hashes:
+        return "No hashes provided."
+    if len(hashes) > 100:
+        return "Maximum 100 hashes per request. Please split into batches."
+
+    try:
+        data = await client.post("model-versions/by-hash", hashes)
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
+
+    if not data:
+        return "No matches found for the provided hashes."
+
+    # Civitai API bug: bulk hash endpoint returns "https://undefined/" as download host.
+    # Fix by replacing with canonical base URL.
+    def _fix_url(obj: object) -> object:
+        if isinstance(obj, str):
+            return obj.replace("https://undefined/", "https://civitai.com/")
+        if isinstance(obj, dict):
+            return {k: _fix_url(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_fix_url(i) for i in obj]
+        return obj
+
+    data = _fix_url(data)
+
+    lines = [f"## Matched {len(data)} / {len(hashes)} hashes\n"]
+    for v in data:
+        lines.append(_format_version(v))
+        lines.append("")
     return "\n".join(lines)

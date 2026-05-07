@@ -367,6 +367,21 @@ async def get_creators(
     return await _get(client, query, limit, page)
 
 
+@mcp.tool(annotations=READ_ONLY, tags={"creators"})
+async def lookup_users(
+    ids: Optional[list[int]] = None,
+    query: Optional[str] = None,
+    limit: int = 20,
+) -> str:
+    """Look up Civitai users by ID or username prefix.
+
+    Provide ids to resolve specific user IDs, or query for username prefix search.
+    """
+    from .tools.creators import lookup_users as _get
+
+    return await _get(client, ids, query, limit)
+
+
 @mcp.tool(annotations=READ_ONLY, tags={"tags"})
 async def get_tags(
     query: Optional[str] = None,
@@ -407,6 +422,35 @@ async def get_download_info(
     from .tools.downloads import get_download_info as _get
 
     return await _get(client, model_id, version_id, comfyui_path)
+
+
+# ═══════════════════════════════════════════════════════════════
+# PERMISSIONS & BULK HASH TOOLS
+# ═══════════════════════════════════════════════════════════════
+
+
+@mcp.tool(annotations=READ_ONLY, tags={"models", "permissions"})
+async def check_permissions(version_ids: list[int]) -> str:
+    """Check if model versions are accessible for download/generation.
+
+    Returns True/False per version ID. Use before downloading to detect early-access gates.
+    True = accessible. False = gated (requires membership or early-access purchase).
+    """
+    from .tools.models import check_permissions as _check
+
+    return await _check(client, version_ids)
+
+
+@mcp.tool(annotations=READ_ONLY, tags={"models"})
+async def get_model_versions_by_hashes(hashes: list[str]) -> str:
+    """Bulk look up model versions by SHA256 file hashes (up to 100).
+
+    Identify which locally installed model files exist on Civitai.
+    Unmatched hashes are silently omitted from results.
+    """
+    from .tools.models import get_model_versions_by_hashes as _get
+
+    return await _get(client, hashes)
 
 
 # ═══════════════════════════════════════════════════════════════
