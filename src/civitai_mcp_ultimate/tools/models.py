@@ -386,3 +386,38 @@ async def get_current_user(client: CivitaiClient) -> str:
     if data.get("subscriptions"):
         lines.append(f"**Subscriptions**: {data['subscriptions']}")
     return "\n".join(lines)
+
+
+async def check_permissions(
+    client: CivitaiClient,
+    version_ids: list[int],
+) -> str:
+    """Check whether model versions are accessible for generation/download.
+
+    Returns True/False per version ID — use before downloading to detect early-access gates.
+    True = accessible, False = gated (requires membership or early-access purchase).
+    """
+    params: dict = {
+        "entityIds": ",".join(str(v) for v in version_ids),
+        "entityType": "ModelVersion",
+        "permission": "Generate",
+    }
+    try:
+        data = await client.get("permissions/check", params)
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
+
+    if not data:
+        return "No results returned."
+
+    lines = ["## Permission Check\n"]
+    for vid_str, allowed in data.items():
+        status = "✓ Accessible" if allowed else "✗ Gated (early access / membership required)"
+        lines.append(f"- Version `{vid_str}`: {status}")
+    return "\n".join(lines)
