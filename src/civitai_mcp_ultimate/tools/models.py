@@ -386,3 +386,48 @@ async def get_current_user(client: CivitaiClient) -> str:
     if data.get("subscriptions"):
         lines.append(f"**Subscriptions**: {data['subscriptions']}")
     return "\n".join(lines)
+
+
+async def get_model_versions_by_hashes(client: CivitaiClient, hashes: list[str]) -> str:
+    """Bulk-look up model versions by SHA256 file hashes (up to 100).
+
+    Useful for identifying which locally installed model files exist on Civitai.
+    Pass SHA256 hashes from your model files — unmatched hashes are silently omitted.
+    """
+    if not hashes:
+        return "No hashes provided."
+    if len(hashes) > 100:
+        return "Maximum 100 hashes per request. Please split into batches."
+
+    try:
+        data = await client.post("model-versions/by-hash", hashes)
+    except CivitaiRateLimitError:
+        return "Rate limited by Civitai API. Please try again in a few seconds."
+    except httpx.TimeoutException:
+        return "Civitai API timed out. Please try again."
+    except CivitaiError as e:
+        return f"Civitai API error: {e}"
+    except httpx.HTTPStatusError as e:
+        return f"Civitai API error: HTTP {e.response.status_code}"
+
+    if not data:
+        return "No matches found for the provided hashes."
+
+    # Civitai API bug: bulk hash endpoint returns "https://undefined/" as download host.
+    # Patch transparently so callers receive a usable URL.
+    def _fix_url(obj: object) -> object:
+        if isinstance(obj, str):
+            return obj.replace("https://undefined/", "https://civitai.com/")
+        if isinstance(obj, dict):
+            return {k: _fix_url(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [_fix_url(i) for i in obj]
+        return obj
+
+    data = _fix_url(data)
+
+    lines = [f"## Matched {len(data)} / {len(hashes)} hashes\n"]
+    for v in data:
+        lines.append(_format_version(v))
+        lines.append("")
+    return "\n".join(lines)
