@@ -372,7 +372,12 @@ async def get_current_user(client: CivitaiClient) -> str:
         return f"Civitai API error: {e}"
     except httpx.HTTPStatusError as e:
         if e.response.status_code == 401:
-            return "API key is invalid or expired. Check CIVITAI_API_KEY."
+            return (
+                "401 Unauthorized from /api/v1/me. "
+                "Note: this endpoint requires a Civitai *session token* (web login), not an API key. "
+                "The API key in CIVITAI_API_KEY works for model downloads but not user identity lookup. "
+                "To verify your API key is valid, try get_model() or search_models() instead."
+            )
         return f"Civitai API error: HTTP {e.response.status_code}"
 
     lines = [
