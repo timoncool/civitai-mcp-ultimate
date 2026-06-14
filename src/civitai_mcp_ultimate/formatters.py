@@ -62,12 +62,23 @@ def format_model_card(model: dict[str, Any]) -> str:
     if tags:
         lines.append(f"**{L_TAGS}**: {', '.join(tags[:10])}")
 
-    # Latest version
+    # All versions index + latest detail
     versions = model.get("modelVersions", [])
     if versions:
+        lines.append("")
+        lines.append(f"### All Versions ({len(versions)} total)")
+        for v in versions:
+            created = str(v.get("publishedAt") or v.get("createdAt") or "?")[:10]
+            base = v.get("baseModel", "?")
+            dl = v.get("stats", {}).get("downloadCount", 0)
+            lines.append(
+                f"- **{v.get('name', '?')}** — Version ID: `{v.get('id')}` | {base} | {created} | {dl:,} DLs"
+            )
+
+        # Detailed block for latest version
         v = versions[0]
         lines.append("")
-        lines.append(f"### {L_VERSION}: {v.get('name', '?')} (ID: {v.get('id')})")
+        lines.append(f"### {L_VERSION} (Latest): {v.get('name', '?')} (ID: {v.get('id')})")
         lines.append(f"- **{L_BASE_MODEL}**: {v.get('baseModel', '?')}")
         if v.get("trainedWords"):
             lines.append(f"- **{L_TRIGGER_WORDS}**: {', '.join(v['trainedWords'])}")
