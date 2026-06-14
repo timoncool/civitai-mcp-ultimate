@@ -442,6 +442,23 @@ async def check_permissions(version_ids: list[int]) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════
+# BULK HASH LOOKUP
+# ═══════════════════════════════════════════════════════════════
+
+
+@mcp.tool(annotations=READ_ONLY, tags={"models"})
+async def get_model_versions_by_hashes(hashes: list[str]) -> str:
+    """Bulk look up model versions by SHA256 file hashes (up to 100).
+
+    Identify which locally installed model files exist on Civitai.
+    Unmatched hashes are silently omitted from results.
+    """
+    from .tools.models import get_model_versions_by_hashes as _get
+
+    return await _get(client, hashes)
+
+
+# ═══════════════════════════════════════════════════════════════
 # HISTORY TOOLS
 # ═══════════════════════════════════════════════════════════════
 

@@ -183,3 +183,56 @@ class CivitaiClient:
         except Exception as e:
             logger.warning(f"generation/data fetch failed for {content_id}: {e}")
             return None
+
+    async def post(self, endpoint: str, body: Any) -> Any:
+        """Make POST request to Civitai API with JSON body.
+
+        Returns parsed JSON (dict or list).
+        Raises:
+            CivitaiNotFoundError: if 404
+            CivitaiRateLimitError: if 429 after all retries
+            httpx.HTTPStatusError: on other HTTP errors
+            httpx.TimeoutException: on timeout after all retries
+        """
+        url = f"{API_BASE}/{endpoint.lstrip('/')}"
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                client = await self._get_client()
+                response = await client.post(url, json=body)
+
+                if response.status_code == 429:
+                    if attempt < MAX_RETRIES - 1:
+                        wait = 2 ** (attempt + 1)
+                        logger.warning(f"Rate limited (429), waiting {wait}s (attempt {attempt + 1}/{MAX_RETRIES})")
+                        await asyncio.sleep(wait)
+                        continue
+                    raise CivitaiRateLimitError(f"Rate limited after {MAX_RETRIES} retries.")
+
+                if response.status_code == 404:
+                    raise CivitaiNotFoundError(f"Not found: {endpoint}")
+
+                response.raise_for_status()
+                try:
+                    return _sanitize_response(response.json())
+                except ValueError:
+                    raise CivitaiError(f"Invalid JSON response from {endpoint}")
+
+            except (httpx.RemoteProtocolError, httpx.ConnectError):
+                if attempt < MAX_RETRIES - 1:
+                    logger.warning(f"Connection error, recreating client (attempt {attempt + 1}/{MAX_RETRIES})")
+                    await self._force_recreate_client()
+                    continue
+                raise
+            except httpx.TimeoutException:
+                if attempt < MAX_RETRIES - 1:
+                    logger.warning(f"Timeout, retrying (attempt {attempt + 1}/{MAX_RETRIES})")
+                    continue
+                raise
+            except CivitaiError:
+                raise
+            except httpx.HTTPStatusError as e:
+                logger.error(f"HTTP error {e.response.status_code}: {e.response.text[:200]}")
+                raise
+
+        raise CivitaiRateLimitError(f"Exhausted {MAX_RETRIES} retries")
