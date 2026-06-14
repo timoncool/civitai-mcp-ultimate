@@ -16,6 +16,10 @@ import httpx
 logger = logging.getLogger(__name__)
 
 API_BASE = "https://civitai.com/api/v1"
+# Generation-data endpoint lives outside /api/v1. Used as a fallback for prompts:
+# since ~2026-06 the public /api/v1/images endpoint returns meta=null (see
+# civitai/civitai#1297), but this endpoint still serves the full params.
+GENERATION_DATA_URL = "https://civitai.com/api/generation/data"
 TIMEOUT = 30.0
 MAX_RETRIES = 3
 
@@ -160,3 +164,22 @@ class CivitaiClient:
                 raise
 
         raise CivitaiRateLimitError(f"Exhausted {MAX_RETRIES} retries")
+
+    async def get_generation_data(
+        self, content_id: int, content_type: str = "image"
+    ) -> dict[str, Any] | None:
+        """Fetch generation params via /api/generation/data (outside /api/v1).
+
+        Best-effort fallback for when /api/v1/images returns meta=null. Returns
+        the raw payload ({params, resources, ...}) or None on any failure.
+        """
+        url = f"{GENERATION_DATA_URL}?type={content_type}&id={content_id}"
+        try:
+            client = await self._get_client()
+            response = await client.get(url)
+            if response.status_code != 200:
+                return None
+            return _sanitize_response(response.json())
+        except Exception as e:
+            logger.warning(f"generation/data fetch failed for {content_id}: {e}")
+            return None

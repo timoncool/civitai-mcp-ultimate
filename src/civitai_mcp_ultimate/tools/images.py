@@ -1,5 +1,6 @@
 """Image-related MCP tools — browse, search, get prompts."""
 
+import asyncio
 import logging
 from typing import Optional
 
@@ -28,6 +29,67 @@ async def _resolve_model_version_ids(client: CivitaiClient, model_id: int) -> li
     except Exception as e:
         logger.warning(f"Failed to resolve version IDs for model {model_id}: {e}")
         return []
+
+
+def _params_to_meta(data: dict) -> dict:
+    """Map a /api/generation/data payload to the meta dict shape the formatter expects."""
+    params = data.get("params") or {}
+    if not params:
+        return {}
+
+    meta: dict = {}
+    for key in ("prompt", "negativePrompt", "steps", "sampler", "cfgScale", "seed"):
+        if params.get(key) is not None:
+            meta[key] = params[key]
+
+    # aspectRatio may be flat ({width,height}) or nested ({value:{width,height}})
+    ar = params.get("aspectRatio")
+    width = height = None
+    if isinstance(ar, dict):
+        width, height = ar.get("width"), ar.get("height")
+        if width is None and isinstance(ar.get("value"), dict):
+            width, height = ar["value"].get("width"), ar["value"].get("height")
+    if width and height:
+        meta["Size"] = f"{width}x{height}"
+
+    # resources sit at the top level here (not under params)
+    resources = data.get("resources") or []
+    checkpoint = next(
+        (r.get("name") for r in resources if r.get("modelType") == "Checkpoint"), None
+    )
+    if checkpoint:
+        meta["Model"] = checkpoint
+    loras = [
+        {"type": "lora", "name": r.get("name"), "weight": r.get("strength")}
+        for r in resources
+        if r.get("modelType") in ("LORA", "LoCon", "DoRA")
+    ]
+    if loras:
+        meta["resources"] = loras
+
+    return meta
+
+
+async def _backfill_missing_meta(client: CivitaiClient, items: list[dict]) -> None:
+    """Backfill generation params for items whose meta is null.
+
+    Since ~2026-06 the public /api/v1/images endpoint returns meta=null
+    (civitai/civitai#1297). We refetch the prompt/params from the still-working
+    /api/generation/data endpoint. Best-effort and concurrent; failures are ignored.
+    """
+    targets = [img for img in items if not img.get("meta") and img.get("id")]
+    if not targets:
+        return
+
+    async def fill(img: dict) -> None:
+        content_type = "video" if img.get("type") == "video" else "image"
+        data = await client.get_generation_data(img["id"], content_type)
+        if data:
+            meta = _params_to_meta(data)
+            if meta:
+                img["meta"] = meta
+
+    await asyncio.gather(*(fill(img) for img in targets), return_exceptions=True)
 
 
 async def _format_with_downloads(
@@ -167,6 +229,9 @@ async def browse_images(
     image_ids = [img["id"] for img in items if img.get("id")]
     action = f"browsed_for:{requester}" if requester else "browsed"
     record_images_batch(image_ids, action=action)
+
+    # Civitai's /api/v1/images now returns meta=null; backfill prompts/params.
+    await _backfill_missing_meta(client, items)
 
     result = await _format_with_downloads(items, include_prompts=True)
 
