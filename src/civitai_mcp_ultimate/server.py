@@ -367,6 +367,21 @@ async def get_creators(
     return await _get(client, query, limit, page)
 
 
+@mcp.tool(annotations=READ_ONLY, tags={"creators"})
+async def lookup_users(
+    ids: Optional[list[int]] = None,
+    query: Optional[str] = None,
+    limit: int = 20,
+) -> str:
+    """Look up Civitai users by ID or username prefix.
+
+    Provide ids to resolve specific user IDs, or query for username prefix search.
+    """
+    from .tools.creators import lookup_users as _get
+
+    return await _get(client, ids, query, limit)
+
+
 @mcp.tool(annotations=READ_ONLY, tags={"tags"})
 async def get_tags(
     query: Optional[str] = None,
