@@ -425,6 +425,23 @@ async def get_download_info(
 
 
 # ═══════════════════════════════════════════════════════════════
+# PERMISSIONS TOOLS
+# ═══════════════════════════════════════════════════════════════
+
+
+@mcp.tool(annotations=READ_ONLY, tags={"models", "permissions"})
+async def check_permissions(version_ids: list[int]) -> str:
+    """Check if model versions are accessible for download/generation.
+
+    Returns True/False per version ID. Use before downloading to detect early-access gates.
+    True = accessible. False = gated (requires membership or early-access purchase).
+    """
+    from .tools.models import check_permissions as _check
+
+    return await _check(client, version_ids)
+
+
+# ═══════════════════════════════════════════════════════════════
 # HISTORY TOOLS
 # ═══════════════════════════════════════════════════════════════
 
